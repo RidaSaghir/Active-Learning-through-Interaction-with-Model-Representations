@@ -1,0 +1,6 @@
+data_dir: '/Users/ridasaghir/Documents/Datasets/UrbanSound8K'
+num_classes: 10
+sample_rate: 16000
+target_duration: 2.0
+embedding_dim: 1024
+broadcast_interval: 20
