@@ -1,4 +1,5 @@
 from torch.utils.data import DataLoader, Subset
+import torch
 import numpy as np
 class LabeledSetManager:
     def __init__(self, labeled_dataset, unlabeled_dataset, batch_size=16):
@@ -22,11 +23,11 @@ class LabeledSetManager:
                 self.labeled_indices.append(idx)
                 self.unlabeled_indices.remove(idx)
 
-    def get_embeddings_and_labels(self):
-        embeddings, labels, filenames = [], [], []
+    def iter_labeled(self):
         for i in self.labeled_indices:
-            embedding_tensor, label_tensor, filename = self.labeled_dataset[i]
-            embeddings.append(embedding_tensor.numpy())
-            labels.append(label_tensor.item())
-            filenames.append(filename)
-        return embeddings, labels, filenames
+            yield self.labeled_dataset[i]
+
+    def iter_unlabeled(self):
+        for i in self.unlabeled_indices:
+            yield self.unlabeled_dataset[i]
+
