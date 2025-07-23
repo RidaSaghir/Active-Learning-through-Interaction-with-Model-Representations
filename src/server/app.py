@@ -77,8 +77,8 @@ def get_embedding_table():
 
     col_names = [f"dim_{i}" for i in range(latest_embeddings.shape[1])]
     df = pd.DataFrame(latest_embeddings, columns=col_names)
-    df.insert(0, "filename", latest_filenames)  # 👈 insert as first column
-    df["label"] = latest_labels  # 👈 label as last column
+    df.insert(0, "filename", latest_filenames)
+    df["label"] = latest_labels
 
     html_table = df.to_html(index=False, classes="table table-striped", border=0)
 
