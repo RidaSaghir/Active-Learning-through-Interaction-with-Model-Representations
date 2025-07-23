@@ -7,11 +7,11 @@ class RestCommunicator:
         # How often during iterations, the communicator sends embeddings
         self.interval = interval
 
-    def maybe_send(self, iteration, embeddings, labels):
+    def maybe_send(self, iteration, embeddings, labels, filenames):
         if iteration % self.interval == 0:
-            self.send(iteration, embeddings, labels)
+            self.send(iteration, embeddings, labels, filenames)
 
-    def send(self, iteration, embeddings, labels):
+    def send(self, iteration, embeddings, labels, filenames):
         payload = {
             "iteration": iteration,
             "embedding_shape": list(embeddings.shape),
