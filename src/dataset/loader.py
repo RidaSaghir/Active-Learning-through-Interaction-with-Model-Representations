@@ -7,6 +7,7 @@ import pandas as pd
 from pathlib import Path
 import torch
 from torch.utils.data import DataLoader, Dataset
+from config import PER_CLASS_COUNT
 import sounddevice as sd
 
 CONFIG_PATH = os.getenv("CONFIG_PATH", "../config.yaml")
@@ -63,7 +64,7 @@ class UrbanSoundLoader:
         test_df = df[df['fold'] == held_out_fold]
 
         # Taking 5 samples from every class for training
-        labeled_df = train_df.groupby('class_code', group_keys=False).apply(lambda x: x.sample(n=10, random_state=42))
+        labeled_df = train_df.groupby('class_code', group_keys=False).apply(lambda x: x.sample(n=PER_CLASS_COUNT, random_state=42))
         unlabeled_df = train_df.drop(labeled_df.index)
         combined_df = pd.concat([labeled_df, unlabeled_df]).reset_index(drop=True)
         labeled_indices = list(range(len(labeled_df)))
