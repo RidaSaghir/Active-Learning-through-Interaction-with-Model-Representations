@@ -17,3 +17,6 @@ class MetricsPayload(BaseModel):
 class AnnotationRequest(BaseModel):
     filenames: List[str]
     indices: List[int]
+class HumanAnnotation(BaseModel):
+    indices: List[int]
+    labels: List[int]
