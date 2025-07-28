@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from config import LEARNING_RATE
 
 class TrainableModel(nn.Module):
-    def __init__(self, input_dim=1024, embedding_dim=64, num_classes=10, lr=1e-3):
+    def __init__(self, input_dim=1024, embedding_dim=64, num_classes=10, lr=LEARNING_RATE):
         super().__init__()
         self.embedding_layer = nn.Sequential(
             nn.Linear(input_dim, 256),
@@ -14,6 +15,7 @@ class TrainableModel(nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
     def forward(self, x):
+        x = (x - x.mean(dim=1, keepdim=True)) / (x.std(dim=1, keepdim=True) + 1e-6)
         z = self.embedding_layer(x)   # z is the dynamic, learnable embedding
         logits = self.classifier(z)   # classification head
         return logits, z
