@@ -8,7 +8,7 @@ class UncertaintySampler:
         uncertainties = []
         model.eval()
         with torch.no_grad():
-            for x, idx in unlabeled_loader:
+            for x, _, _, idx in unlabeled_loader:
                 logits, _ = model(x)
                 probs = F.softmax(logits, dim=1)
                 entropy = -torch.sum(probs * torch.log(probs + 1e-8), dim=1)
@@ -20,45 +20,52 @@ class UncertaintySampler:
 
 
 class ActiveLearningLoop:
-    def __init__(self, trainer, sampler, communicator):
-        self.trainer = trainer
+    def __init__(self, manager, model, sampler, communicator):
+        self.model = model
         self.sampler = sampler
         self.communicator = communicator
+        self.manager = manager
 
-    def gather_full_dataset_view(self, manager, model):
-        embeddings, labels, filenames = [], [], []
+    def gather_full_dataset_view(self, manager):
+        embeddings, labels, filenames, label_types = [], [], [], []
 
-
-        model.eval()
+        self.model.eval()
         with torch.no_grad():
             # Labeled
-            for embedding_tensor, label_tensor, filename in manager.iter_labeled():
-                _, z = model(embedding_tensor.unsqueeze(0))
-                embeddings.append(z.squeeze(0).numpy())
-                labels.append(label_tensor.item())
-                filenames.append(filename)
-
-            # Unlabeled
-            for embedding_tensor, _, filename in manager.iter_unlabeled():
-                logits, z = model(embedding_tensor.unsqueeze(0))
+            for embedding_tensor, label_tensor, filename, index in manager.iter_labeled():
+                logits, z = self.model(embedding_tensor.unsqueeze(0))
                 pred_label = torch.argmax(logits, dim=1).item()
                 embeddings.append(z.squeeze(0).numpy())
                 labels.append(pred_label)
                 filenames.append(filename)
+                label_types.append("actual")
 
-        return np.stack(embeddings), np.array(labels), filenames
+            # Unlabeled
+            for embedding_tensor, _, filename, index in manager.iter_unlabeled():
+                logits, z = self.model(embedding_tensor.unsqueeze(0))
+                pred_label = torch.argmax(logits, dim=1).item()
+                embeddings.append(z.squeeze(0).numpy())
+                labels.append(pred_label)
+                filenames.append(filename)
+                label_types.append("predicted")
 
-    def run(self, manager, model, num_iters=100):
-        for i in range(num_iters):
-            x, y, _ = manager.next_batch()
-            loss = self.trainer.train_step(x, y)
-            print(f"Iteration {i}, Loss: {loss:.4f}")
+        return np.stack(embeddings), np.array(labels), filenames, label_types
 
-            embeddings, labels, filenames = self.gather_full_dataset_view(manager, model)
-            self.communicator.maybe_send(i, embeddings, labels, filenames)
+    def run(self, start_iteration, num_iters=100):
+        for local_iteration in range(num_iters):
+            global_iteration = start_iteration + local_iteration
+            x, y, filenames, idx = self.manager.next_batch()
+            loss = self.model.train_step(x, y)
+            print(f"Local Iteration {local_iteration}, Loss: {loss:.4f}")
 
-            if i % 10 == 0:
-                unlabeled_loader = manager.get_unlabeled_loader()
-                new_ids = self.sampler.select(unlabeled_loader, model, n=5)
-                manager.add_from_unlabeled(new_ids)
+            embeddings, labels, filenames, label_types = self.gather_full_dataset_view(self.manager)
+            self.communicator.maybe_send(global_iteration, embeddings, labels, filenames, label_types)
+
+
+        unlabeled_loader = self.manager.get_unlabeled_loader()
+        new_ids = self.sampler.select(unlabeled_loader, self.model, n=5)
+        # Gather metadata for these samples ([2] represents filename)
+        filenames_to_annotate = [self.manager.dataset[i][2] for i in new_ids]
+        self.communicator.send_annotation_request(filenames_to_annotate, new_ids)
+        return global_iteration, loss
 
