@@ -1,5 +1,3 @@
-import scipy
-from scipy.io import wavfile
 import librosa
 import librosa.display
 import os
@@ -15,7 +13,7 @@ CONFIG_PATH = os.getenv("CONFIG_PATH", "../config.yaml")
 with open(CONFIG_PATH, "r") as f:
     cfg = yaml.safe_load(f)
 
-# Access configuration variables
+# Config variables
 DATA_DIR = os.path.abspath(cfg.get("data_dir", "data/UrbanSound8K"))
 DESIRED_SAMPLE_RATE = cfg.get("sample_rate", 16000)
 TARGET_DURATION = cfg.get("target_duration", 4.0)
@@ -31,11 +29,11 @@ class UrbanSoundEmbeddingDataset(Dataset):
         audio = self.load_audio_file(self.paths[idx])
         embedding = self.embedder.get_embedding(audio)
         filename = os.path.basename(self.paths[idx])
-        # returns embedding and label
         return (
             torch.tensor(embedding, dtype=torch.float32),
             torch.tensor(self.labels[idx], dtype=torch.long),
-            filename
+            filename,
+            idx
         )
 
 
@@ -57,39 +55,28 @@ class UrbanSoundLoader:
         self.embedder = embedder
         self.metadata_path = os.path.join(DATA_DIR, "UrbanSound8K.csv")
 
-    def get_labeled_unlabeled_datasets(self, labeled_count=50, batch_size=16):
-
-
+    def get_labeled_unlabeled_datasets(self, held_out_fold, labeled_count=50):
         df = pd.read_csv(self.metadata_path)
-        if 'manual_label' in df.columns:
-            # Once there are manual labels from the user
-            labeled_df = df[df['manual_label'] == True]
-            unlabeled_df = df[df['manual_label'] != True]
-        else:
-            # Cold start fallback
-            labeled_df = df.iloc[:labeled_count]
-            unlabeled_df = df.iloc[labeled_count:]
+        df['class_code'] = df['class'].astype('category').cat.codes
 
-        # Convert to paths and labels
-        labeled_paths = [Path(DATA_DIR) / f"fold{row['fold']}" / row['slice_file_name'] for _, row in
-                         labeled_df.iterrows()]
-        labeled_labels = labeled_df['class'].astype('category').cat.codes.to_numpy()
+        train_df = df[df['fold'] != held_out_fold]
+        test_df = df[df['fold'] == held_out_fold]
 
-        unlabeled_paths = [Path(DATA_DIR) / f"fold{row['fold']}" / row['slice_file_name'] for _, row in
-                           unlabeled_df.iterrows()]
-        unlabeled_labels = unlabeled_df['class'].astype('category').cat.codes.to_numpy()
+        # Taking 5 samples from every class for training
+        labeled_df = train_df.groupby('class_code', group_keys=False).apply(lambda x: x.sample(n=10, random_state=42))
+        unlabeled_df = train_df.drop(labeled_df.index)
+        combined_df = pd.concat([labeled_df, unlabeled_df]).reset_index(drop=True)
+        labeled_indices = list(range(len(labeled_df)))
+        unlabeled_indices = list(range(len(labeled_df), len(combined_df)))
 
-        # Initializing class for fetching data with suitable sample rate and length
-        labeled_ds = UrbanSoundEmbeddingDataset(labeled_paths, labeled_labels, self.embedder)
-        unlabeled_ds = UrbanSoundEmbeddingDataset(unlabeled_paths, unlabeled_labels, self.embedder)
+        train_paths = [Path(DATA_DIR) / f"fold{row['fold']}" / row['slice_file_name'] for _, row in combined_df.iterrows()]
+        train_labels = combined_df['class_code'].to_numpy()
+        full_train_dataset = UrbanSoundEmbeddingDataset(train_paths, train_labels, self.embedder)
 
-        # Wrap in DataLoaders (Pytorch specific)
-        labeled_loader = DataLoader(labeled_ds, batch_size=batch_size, shuffle=True)
+        test_paths = [Path(DATA_DIR) / f"fold{row['fold']}" / row['slice_file_name'] for _, row in test_df.iterrows()]
+        test_labels = test_df['class_code'].to_numpy()
+        test_dataset = UrbanSoundEmbeddingDataset(test_paths, test_labels, self.embedder)
 
-        # For active learning, track indices of unlabeled samples
-        indexed_unlabeled = [(x[0], i) for i, x in enumerate(DataLoader(unlabeled_ds, batch_size=1))]
-        unlabeled_loader = DataLoader(indexed_unlabeled, batch_size=batch_size)
-
-        return labeled_ds, unlabeled_ds
+        return full_train_dataset, labeled_indices, unlabeled_indices, test_dataset
 
 
