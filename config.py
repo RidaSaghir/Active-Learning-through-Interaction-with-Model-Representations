@@ -1,7 +1,7 @@
 import os
 import yaml
 
-CONFIG_PATH = os.getenv("CONFIG_PATH", "../config.yaml")
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
 
 with open(CONFIG_PATH, "r") as f:
     cfg = yaml.safe_load(f)
@@ -14,3 +14,8 @@ TARGET_DURATION = cfg.get("target_duration", 4.0)
 EMBEDDING_DIM = cfg.get("embedding_dim", 1024)
 BROADCAST_INTERVAL = cfg.get("broadcast_interval", 20)
 BASE_URL = cfg.get("base_url", "http://localhost:8000")
+CHECKPOINT = cfg.get("check_point")
+HUMAN_ANNOTATIONS = cfg.get("human_annotations")
+LEARNING_RATE = float(cfg.get("learning_rate"))
+BATCH_SIZE = cfg.get("batch_size")
+PER_CLASS_COUNT = cfg.get("per_class_count")
