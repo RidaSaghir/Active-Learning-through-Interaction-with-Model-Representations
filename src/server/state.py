@@ -7,4 +7,4 @@ latest_filenames = None
 latest_label_types = None
 
 latest_metrics = {}
-pending_annotation_filenames = []
+suggested_annotation_filenames = []
