@@ -2,9 +2,10 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import itertools
+from config import NUM_ANNOTATION_SUGGESTIONS
 
 class UncertaintySampler:
-    def select(self, unlabeled_loader, model, n):
+    def select(self, unlabeled_loader, model, n=NUM_ANNOTATION_SUGGESTIONS):
         uncertainties = []
         model.eval()
         with torch.no_grad():
@@ -63,7 +64,7 @@ class ActiveLearningLoop:
 
 
         unlabeled_loader = self.manager.get_unlabeled_loader()
-        new_ids = self.sampler.select(unlabeled_loader, self.model, n=5)
+        new_ids = self.sampler.select(unlabeled_loader, self.model)
         # Gather metadata for these samples ([2] represents filename)
         filenames_to_annotate = [self.manager.dataset[i][2] for i in new_ids]
         self.communicator.send_annotation_request(filenames_to_annotate, new_ids)
