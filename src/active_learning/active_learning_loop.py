@@ -56,17 +56,16 @@ class ActiveLearningLoop:
         for local_iteration in range(num_iters):
             global_iteration = start_iteration + local_iteration
             x, y, filenames, idx = self.manager.next_batch()
-            loss = self.model.train_step(x, y)
-            print(f"Local Iteration {local_iteration}, Loss: {loss:.4f}")
-
+            train_loss, train_accuracy = self.model.train_step(x, y)
+            self.communicator.send_metrics(global_iteration, train_accuracy, train_loss)
+            print(f"Local Iteration {local_iteration}, Loss: {train_loss:.4f}")
             embeddings, labels, filenames, label_types = self.gather_full_dataset_view(self.manager)
             self.communicator.maybe_send(global_iteration, embeddings, labels, filenames, label_types)
-
 
         unlabeled_loader = self.manager.get_unlabeled_loader()
         new_ids = self.sampler.select(unlabeled_loader, self.model)
         # Gather metadata for these samples ([2] represents filename)
         filenames_to_annotate = [self.manager.dataset[i][2] for i in new_ids]
         self.communicator.send_annotation_request(filenames_to_annotate, new_ids)
-        return global_iteration, loss
+        return global_iteration, train_loss
 

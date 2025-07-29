@@ -7,8 +7,7 @@ from active_learning.active_learning_loop import UncertaintySampler, ActiveLearn
 from server.communicator import RestCommunicator
 from utils import evaluate_model, load_annotations
 import torch
-from config import CHECKPOINT, BATCH_SIZE
-import server.state as state
+from config import CHECKPOINT, BATCH_SIZE, NUM_ITERATIONS
 
 if __name__ == '__main__':
     embedder = YAMNetEmbedder()
@@ -64,7 +63,7 @@ if __name__ == '__main__':
         )
 
         loop = ActiveLearningLoop(labeled_manager, model, sampler, communicator)
-        total_iterations, last_loss = loop.run(start_iteration=total_iterations, num_iters=50)
+        total_iterations, train_loss = loop.run(start_iteration=total_iterations, num_iters=NUM_ITERATIONS)
         #acc = evaluate_model(model, test_dataset)
         #print(f"[Fold {held_out_fold}] Accuracy: {acc:.4f}")
         #communicator.send_metrics(total_iterations, acc, last_loss)
