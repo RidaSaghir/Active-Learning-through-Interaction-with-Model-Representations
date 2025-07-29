@@ -2,6 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+#That makes /app (the Docker working dir) visible as a top-level package for imports like import config
+ENV PYTHONPATH=/app
+
+# copy everything to the working directory
 COPY . .
 
 # Install dependencies
