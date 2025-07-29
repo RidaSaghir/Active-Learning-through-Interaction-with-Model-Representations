@@ -6,18 +6,8 @@ import yaml
 import pandas as pd
 from pathlib import Path
 import torch
-from torch.utils.data import DataLoader, Dataset
-from config import PER_CLASS_COUNT
-import sounddevice as sd
-
-CONFIG_PATH = os.getenv("CONFIG_PATH", "../config.yaml")
-with open(CONFIG_PATH, "r") as f:
-    cfg = yaml.safe_load(f)
-
-# Config variables
-DATA_DIR = os.path.abspath(cfg.get("data_dir", "data/UrbanSound8K"))
-DESIRED_SAMPLE_RATE = cfg.get("sample_rate", 16000)
-TARGET_DURATION = cfg.get("target_duration", 4.0)
+from torch.utils.data import Dataset
+from config import PER_CLASS_COUNT, DATA_DIR, SAMPLE_RATE, TARGET_DURATION
 
 # PyTorch dataset
 class UrbanSoundEmbeddingDataset(Dataset):
@@ -41,7 +31,7 @@ class UrbanSoundEmbeddingDataset(Dataset):
     def __len__(self):
         return len(self.paths)
 
-    def load_audio_file(self, path, sr=DESIRED_SAMPLE_RATE, duration=TARGET_DURATION):
+    def load_audio_file(self, path, sr=SAMPLE_RATE, duration=TARGET_DURATION):
         waveform, _ = librosa.load(path, sr=sr, mono=True)
         target_length = int(sr * duration)
         if len(waveform) > target_length:
