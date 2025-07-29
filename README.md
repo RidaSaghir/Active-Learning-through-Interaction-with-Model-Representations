@@ -31,6 +31,49 @@ docker run \
   interactive-ml-app
 ```
 ---
+## API Routes
+
+Once the Docker container is running, your FastAPI backend will expose the following HTTP routes at [http://localhost:8000](http://localhost:8000):
+
+---
+
+###  `/table`  
+**GET**  
+Displays the latest embedding table in a browser-friendly HTML format.  
+➡️ Visit this in your browser to view the embeddings, labels, and filenames in a tabular format.
+
+---
+
+### `/metrics`  
+**POST**  
+Receives training metrics (accuracy and loss) from the backend training loop.  
+You should see logs like  
+`[FastAPI] Received metrics at iteration X` in your terminal.
+
+---
+
+### 🧠 `/annotate`  
+**POST**  
+Receives a list of filenames and indices for which user annotations are requested.  
+
+### `/annotate`  
+**GET**  
+Fetches the current list of files that require human annotation.  
+➡️ Visit this in your browser or via frontend to see which files the system wants labeled.
+
+---
+
+### `/human_annotations`  
+**POST**  
+Accepts human-labeled indices and their corresponding labels.  
+➡️ These are saved to `human_annotations.json` and used in future training cycles.
+
+---
+
+You can also explore these endpoints interactively at:  
+[http://localhost:8000/docs](http://localhost:8000/docs)  
+(FastAPI automatically generates Swagger UI)
+
 
 ## Project Structure & Class Responsibilities
 
