@@ -3,8 +3,36 @@
 This project is WORK IN PROGRESS for an interactive machine learning system for sound classification using the UrbanSound8K dataset. It leverages **active learning**, **pretrained audio embeddings (YAMNet)**, and a **VR-compatible backend** to support human-in-the-loop annotation and retraining.
 
 ---
+## How to get it working?
+### 1. Clone the Repository
 
-## 📁 Project Structure & Class Responsibilities
+Use one of the following commands:
+
+```bash
+git clone https://git.ni.dfki.de/iml/cst/long-time-scale/interactive-machine-learning.git
+# OR
+git clone git@git.ni.dfki.de:iml/cst/long-time-scale/interactive-machine-learning.git
+```
+
+### 2. Download the dataset
+- We are currently using [UrbanSound8K](https://urbansounddataset.weebly.com/urbansound8k.html) for this project which can be downloaded from https://urbansounddataset.weebly.com/download-urbansound8k.html.
+- You’ll be redirected to fill out a short form before the download begins.
+
+### 3. Build and run the docker image
+
+- Open a terminal in the root directory of the project (where Dockerfile is located) and run:
+```bash
+docker build -t interactive-ml-app .      
+# Replace <ABSOLUTE_PATH_TO_DATASET> with your actual dataset path
+docker run \
+  -v <ABSOLUTE_PATH_TO_DATASET>:/data \
+  -e DATA_DIR=/data \
+  -p 8000:8000 \
+  interactive-ml-app
+```
+---
+
+## Project Structure & Class Responsibilities
 
 ### `embeddings/pretrained_model.py`
 
@@ -20,7 +48,7 @@ This project is WORK IN PROGRESS for an interactive machine learning system for 
 #### `TrainableModel`
 - A PyTorch model that:
   - Takes frozen YAMNet embeddings as input.
-  - Projects them into a **trainable embedding space** (256D).
+  - Projects them into a **trainable embedding space** (64D).
   - Applies a classification head for supervised learning.
 - Returns both:
   - `logits` (for classification)
