@@ -24,7 +24,13 @@ class TrainableModel(nn.Module):
         self.train()
         logits, _ = self.forward(x)
         loss = F.cross_entropy(logits, y)
+
+        preds = torch.argmax(logits, dim=1)
+        correct = (preds == y).sum().item()
+        total = y.size(0)
+        accuracy = correct / total
+
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        return loss.item()
+        return loss.item(), accuracy
