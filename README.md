@@ -52,7 +52,7 @@ You should see logs like
 
 ---
 
-### 🧠 `/annotate`  
+### `/annotate`  
 **POST**  
 Receives a list of filenames and indices for which user annotations are requested.  
 
