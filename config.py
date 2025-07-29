@@ -7,7 +7,7 @@ with open(CONFIG_PATH, "r") as f:
     cfg = yaml.safe_load(f)
 
 # Expose values as constants
-DATA_DIR = os.path.abspath(cfg.get("data_dir", "data/UrbanSound8K"))
+DATA_DIR = os.environ.get("DATA_DIR", os.path.abspath(cfg.get("data_dir", "data/UrbanSound8K")))
 NUM_CLASSES = cfg.get("num_classes", 10)
 SAMPLE_RATE = cfg.get("sample_rate", 16000)
 TARGET_DURATION = cfg.get("target_duration", 4.0)
@@ -19,3 +19,5 @@ HUMAN_ANNOTATIONS = cfg.get("human_annotations")
 LEARNING_RATE = float(cfg.get("learning_rate"))
 BATCH_SIZE = cfg.get("batch_size")
 PER_CLASS_COUNT = cfg.get("per_class_count")
+NUM_ANNOTATION_SUGGESTIONS = cfg.get("num_annotation_suggestions")
+NUM_ITERATIONS = cfg.get("num_iterations")
