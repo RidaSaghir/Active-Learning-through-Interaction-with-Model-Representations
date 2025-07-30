@@ -12,20 +12,20 @@ class RestCommunicator:
 
         self.interval = interval
 
-    def maybe_send(self, iteration, embeddings, labels, filenames, label_types):
+    def maybe_send(self, iteration, embeddings, actual_labels, predicted_labels, filenames):
         if iteration % self.interval == 0:
-            self.send_original(iteration, embeddings, labels, filenames, label_types)
+            self.send_original(iteration, embeddings, actual_labels, predicted_labels, filenames)
             embeddings_3d = compute_umap(embeddings)
-            self.send_3d(iteration, embeddings_3d, labels, filenames, label_types)
+            self.send_3d(iteration, embeddings_3d, actual_labels, predicted_labels, filenames)
 
-    def send_original(self, iteration, embeddings, labels, filenames, label_types):
+    def send_original(self, iteration, embeddings, actual_labels, predicted_labels, filenames):
         payload = {
             "iteration": iteration,
             "embedding_shape": list(embeddings.shape),
-            "embeddings": embeddings.tolist(),  # convert to JSON serializable format
-            "labels": labels.tolist(),
-            "filenames": filenames,
-            "label_types": label_types
+            "embeddings": embeddings.tolist(),
+            "actual_labels": actual_labels,
+            "predicted_labels": predicted_labels,
+            "filenames": filenames
         }
         try:
             response = requests.post(self.embeddings_url, json=payload)
@@ -34,14 +34,13 @@ class RestCommunicator:
         except requests.RequestException as e:
             print(f"[RestCommunicator] Error sending data: {e}")
 
-    def send_3d(self, iteration, embeddings, labels, filenames, label_types):
+    def send_3d(self, iteration, embeddings_3d, actual_labels, predicted_labels, filenames):
         payload = {
             "iteration": iteration,
-            "embedding_shape": list(embeddings.shape),
-            "embeddings": embeddings.tolist(),  # convert to JSON serializable format
-            "labels": labels.tolist(),
-            "filenames": filenames,
-            "label_types": label_types
+            "embeddings": embeddings_3d.tolist(),
+            "actual_labels": actual_labels,
+            "predicted_labels": predicted_labels,
+            "filenames": filenames
         }
         try:
             response = requests.post(self.embeddings_url_3d, json=payload)

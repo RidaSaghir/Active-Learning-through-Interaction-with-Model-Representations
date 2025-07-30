@@ -39,7 +39,7 @@ class LabeledSetManager:
                 self.unlabeled_indices.remove(idx)
 
     def iter_labeled(self):
-        """Yield (embedding, label, filename, index) for labeled data."""
+        """Yield (embedding, label_tensor, original_label, filename, index) for labeled data."""
         for i in self.labeled_indices:
             yield self.dataset[i]
 

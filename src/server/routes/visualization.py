@@ -13,52 +13,64 @@ def plot_embeddings():
     if state.latest_3d_embeddings is None:
         return {"error": "No 3D embeddings to plot"}
 
-    # Create JS-embedded HTML
     embeddings = state.latest_3d_embeddings.tolist()
-    labels = state.latest_labels.tolist()
+    actual_labels = state.latest_actual_labels
+    predicted_labels = state.latest_predicted_labels
     filenames = state.latest_filenames
 
     html = r"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-        </head>
-        <body>
-            <h2>3D Embeddings - Iteration """ + str(state.latest_iteration) + r"""</h2>
-            <div id="plot" style="width: 100%; height: 600px;"></div>
-            <script>
-                const embeddings = """ + json.dumps(embeddings) + r""";
-                const labels = """ + json.dumps(labels) + r""";
-                const filenames = """ + json.dumps(filenames) + r""";
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+            </head>
+            <body>
+                <h2>3D Embeddings - Iteration """ + str(state.latest_iteration) + r"""</h2>
+                <div id="plot" style="width: 100%; height: 600px;"></div>
+                <script>
+                    const embeddings = """ + json.dumps(embeddings) + r""";
+                    const actualLabels = """ + json.dumps(actual_labels) + r""";
+                    const predictedLabels = """ + json.dumps(predicted_labels) + r""";
+                    const filenames = """ + json.dumps(filenames) + r""";
 
-                const x = embeddings.map(e => e[0]);
-                const y = embeddings.map(e => e[1]);
-                const z = embeddings.map(e => e[2]);
+                    const x = embeddings.map(e => e[0]);
+                    const y = embeddings.map(e => e[1]);
+                    const z = embeddings.map(e => e[2]);
 
-                const hoverTexts = filenames.map((f, i) => `File: ${f}<br>Label: ${labels[i]}`);
+                    const hoverTexts = filenames.map((f, i) => 
+                        `File: ${f}<br>Actual: ${actualLabels[i]}<br>Predicted: ${predictedLabels[i]}`
+                    );
+                    
+                    const labelToIndex = {};
+                    let labelCounter = 0;
+                    const colorIndices = actualLabels.map(label => {
+                        if (!(label in labelToIndex)) {
+                            labelToIndex[label] = labelCounter++;
+                        }
+                        return labelToIndex[label];
+                    });
 
-                const trace = {
-                    x: x,
-                    y: y,
-                    z: z,
-                    mode: 'markers',
-                    type: 'scatter3d',
-                    text: hoverTexts,
-                    hoverinfo: 'text',
-                    marker: {
-                        size: 4,
-                        color: labels,
-                        colorscale: 'Viridis',
-                        opacity: 0.8
-                    }
-                };
+                    const trace = {
+                        x: x,
+                        y: y,
+                        z: z,
+                        mode: 'markers',
+                        type: 'scatter3d',
+                        text: hoverTexts,
+                        hoverinfo: 'text',
+                        marker: {
+                            size: 4,
+                            color: colorIndices,
+                            colorscale: 'Viridis',
+                            opacity: 0.8
+                        }
+                    };
 
-                Plotly.newPlot('plot', [trace]);
-            </script>
-        </body>
-        </html>
-        """
+                    Plotly.newPlot('plot', [trace]);
+                </script>
+            </body>
+            </html>
+            """
     return HTMLResponse(content=html)
 
 @router.get("/table", response_class=HTMLResponse)
@@ -70,8 +82,8 @@ def get_embedding_table():
     df_emb = pd.DataFrame(state.latest_embeddings, columns=col_names)
     df_meta = pd.DataFrame({
         "filename": state.latest_filenames,
-        "label": state.latest_labels,
-        "label_type": state.latest_label_types
+        "predicted_label": state.latest_predicted_labels,
+        "actual_label": state.latest_actual_labels
     })
     df = pd.concat([df_meta, df_emb], axis=1)
 

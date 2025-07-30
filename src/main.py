@@ -31,6 +31,8 @@ if __name__ == '__main__':
         unlabeled_indices = checkpoint.get('unlabeled_indices', [])
         resume = True
         print(f"[main.py] Loaded checkpoint. Resuming from iteration {total_iterations}.")
+        print(f"[main.py] Total labeled indices {len(labeled_indices)}.")
+        print(f"[main.py] Total unabeled indices {len(unlabeled_indices)}.")
     else:
         print("[main.py] No checkpoint found. Starting from scratch.")
 
@@ -39,7 +41,7 @@ if __name__ == '__main__':
 
     for held_out_fold in range(1, 3):
         # Get data for current fold
-        full_dataset, default_labeled, default_unlabeled, test_dataset = loader.get_labeled_unlabeled_datasets(
+        full_train_dataset, default_labeled, default_unlabeled, test_dataset, class_code_to_label = loader.get_labeled_unlabeled_datasets(
             held_out_fold)
 
         # Choose pools based on checkpoint or defaults
@@ -49,20 +51,20 @@ if __name__ == '__main__':
         # Apply human annotations to dataset if available
         if human_annotations:
             for idx, label in human_annotations.items():
-                full_dataset.labels[idx] = label
+                full_train_dataset.labels[idx] = label
                 if idx not in active_labeled:
                     active_labeled.append(idx)
                 if idx in active_unlabeled:
                     active_unlabeled.remove(idx)
 
         labeled_manager = LabeledSetManager(
-            full_dataset,
+            full_train_dataset,
             active_labeled,
             active_unlabeled,
             batch_size=BATCH_SIZE
         )
 
-        loop = ActiveLearningLoop(labeled_manager, model, sampler, communicator)
+        loop = ActiveLearningLoop(labeled_manager, model, sampler, communicator, class_code_to_label)
         total_iterations, train_loss = loop.run(start_iteration=total_iterations, num_iters=NUM_ITERATIONS)
         #acc = evaluate_model(model, test_dataset)
         #print(f"[Fold {held_out_fold}] Accuracy: {acc:.4f}")

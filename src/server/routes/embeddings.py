@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 import numpy as np
-from ..schemas import EmbeddingPayload
+from ..schemas import EmbeddingPayload, EmbeddingPayload3D
 from .. import state
 
 router = APIRouter()
@@ -9,9 +9,9 @@ router = APIRouter()
 def receive_latest_embeddings(payload: EmbeddingPayload):
     state.latest_iteration = payload.iteration
     state.latest_embeddings = np.array(payload.embeddings)
-    state.latest_labels = np.array(payload.labels)
+    state.latest_actual_labels = payload.actual_labels
+    state.latest_predicted_labels = payload.predicted_labels
     state.latest_filenames = payload.filenames
-    state.latest_label_types = payload.label_types
 
     print(f"[FastAPI] Received embeddings at iteration {payload.iteration}, shape: {state.latest_embeddings.shape}")
     return {"status": "ok"}
@@ -26,17 +26,18 @@ def get_latest_embeddings():
         "iteration": state.latest_iteration,
         "shape": list(state.latest_embeddings.shape),
         "embeddings": state.latest_embeddings.tolist(),
-        "labels": state.latest_labels.tolist(),
+        "actual_labels": state.latest_actual_labels,
+        "predicted_labels": state.latest_predicted_labels,
         "filenames": state.latest_filenames
     }
 
 @router.post("/3d_embeddings")
-def receive_latest_3d_embeddings(payload: EmbeddingPayload):
+def receive_latest_3d_embeddings(payload: EmbeddingPayload3D):
     state.latest_iteration = payload.iteration
     state.latest_3d_embeddings = np.array(payload.embeddings)
-    state.latest_labels = np.array(payload.labels)
+    state.latest_actual_labels = payload.actual_labels
+    state.latest_predicted_labels = payload.predicted_labels
     state.latest_filenames = payload.filenames
-    state.latest_label_types = payload.label_types
 
     print(f"[FastAPI] Received 3D embeddings at iteration {payload.iteration}, shape: {state.latest_3d_embeddings.shape}")
     return {"status": "ok"}
@@ -51,6 +52,7 @@ def get_latest_3d_embeddings():
         "iteration": state.latest_iteration,
         "shape": list(state.latest_3d_embeddings.shape),
         "embeddings": state.latest_3d_embeddings.tolist(),
-        "labels": state.latest_labels.tolist(),
+        "actual_labels": state.latest_actual_labels,
+        "predicted_labels": state.latest_predicted_labels,
         "filenames": state.latest_filenames
     }

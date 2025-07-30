@@ -11,9 +11,10 @@ from config import PER_CLASS_COUNT, DATA_DIR, SAMPLE_RATE, TARGET_DURATION
 
 # PyTorch dataset
 class UrbanSoundEmbeddingDataset(Dataset):
-    def __init__(self, paths, labels, embedder):
+    def __init__(self, paths, labels,original_labels, embedder):
         self.paths = paths
         self.labels = labels
+        self.original_labels = original_labels
         self.embedder = embedder
 
     def __getitem__(self, idx):
@@ -23,10 +24,10 @@ class UrbanSoundEmbeddingDataset(Dataset):
         return (
             torch.tensor(embedding, dtype=torch.float32),
             torch.tensor(self.labels[idx], dtype=torch.long),
+            self.original_labels[idx],
             filename,
             idx
         )
-
 
     def __len__(self):
         return len(self.paths)
@@ -49,6 +50,7 @@ class UrbanSoundLoader:
     def get_labeled_unlabeled_datasets(self, held_out_fold, labeled_count=50):
         df = pd.read_csv(self.metadata_path)
         df['class_code'] = df['class'].astype('category').cat.codes
+        class_code_to_label = dict(enumerate(df['class'].astype('category').cat.categories))
 
         train_df = df[df['fold'] != held_out_fold]
         test_df = df[df['fold'] == held_out_fold]
@@ -62,12 +64,14 @@ class UrbanSoundLoader:
 
         train_paths = [Path(DATA_DIR) / f"fold{row['fold']}" / row['slice_file_name'] for _, row in combined_df.iterrows()]
         train_labels = combined_df['class_code'].to_numpy()
-        full_train_dataset = UrbanSoundEmbeddingDataset(train_paths, train_labels, self.embedder)
+        train_original_labels = combined_df['class'].tolist()
+        full_train_dataset = UrbanSoundEmbeddingDataset(train_paths, train_labels, train_original_labels, self.embedder)
 
         test_paths = [Path(DATA_DIR) / f"fold{row['fold']}" / row['slice_file_name'] for _, row in test_df.iterrows()]
         test_labels = test_df['class_code'].to_numpy()
-        test_dataset = UrbanSoundEmbeddingDataset(test_paths, test_labels, self.embedder)
+        test_original_labels = test_df['class'].tolist()
+        test_dataset = UrbanSoundEmbeddingDataset(test_paths, test_labels, test_original_labels, self.embedder)
 
-        return full_train_dataset, labeled_indices, unlabeled_indices, test_dataset
+        return full_train_dataset, labeled_indices, unlabeled_indices, test_dataset, class_code_to_label
 
 

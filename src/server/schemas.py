@@ -5,9 +5,16 @@ class EmbeddingPayload(BaseModel):
     iteration: int
     embedding_shape: List[int]
     embeddings: List[List[float]]
-    labels: List[int]
+    actual_labels: List[str]
+    predicted_labels: List[str]
     filenames: List[str]
-    label_types: List[str]
+
+class EmbeddingPayload3D(BaseModel):
+    iteration: int
+    embeddings: List[List[float]]
+    actual_labels: List[str]
+    predicted_labels: List[str]
+    filenames: List[str]
 
 class MetricsPayload(BaseModel):
     iteration: int
@@ -19,4 +26,4 @@ class AnnotationRequest(BaseModel):
     indices: List[int]
 class HumanAnnotation(BaseModel):
     indices: List[int]
-    labels: List[int]
+    labels: List[str]

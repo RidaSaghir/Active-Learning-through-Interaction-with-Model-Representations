@@ -21,46 +21,49 @@ class UncertaintySampler:
 
 
 class ActiveLearningLoop:
-    def __init__(self, manager, model, sampler, communicator):
+    def __init__(self, manager, model, sampler, communicator, class_code_to_label):
         self.model = model
         self.sampler = sampler
         self.communicator = communicator
         self.manager = manager
+        self.class_code_to_label = class_code_to_label
 
     def gather_full_dataset_view(self, manager):
-        embeddings, labels, filenames, label_types = [], [], [], []
+        embeddings, predicted_labels, actual_labels, filenames, label_types = [], [], [], [], []
 
         self.model.eval()
         with torch.no_grad():
             # Labeled
-            for embedding_tensor, label_tensor, filename, index in manager.iter_labeled():
+            for embedding_tensor, label_tensor, original_label, filename, index in manager.iter_labeled():
                 logits, z = self.model(embedding_tensor.unsqueeze(0))
-                pred_label = torch.argmax(logits, dim=1).item()
+                pred_code = torch.argmax(logits, dim=1).item()
+                pred_label = self.class_code_to_label[pred_code]
                 embeddings.append(z.squeeze(0).numpy())
-                labels.append(pred_label)
+                predicted_labels.append(pred_label)
+                actual_labels.append(original_label)
                 filenames.append(filename)
-                label_types.append("actual")
 
             # Unlabeled
-            for embedding_tensor, _, filename, index in manager.iter_unlabeled():
+            for embedding_tensor, label_tensor, original_label, filename, index in manager.iter_unlabeled():
                 logits, z = self.model(embedding_tensor.unsqueeze(0))
-                pred_label = torch.argmax(logits, dim=1).item()
+                pred_code = torch.argmax(logits, dim=1).item()
+                pred_label = self.class_code_to_label[pred_code]
                 embeddings.append(z.squeeze(0).numpy())
-                labels.append(pred_label)
+                predicted_labels.append(pred_label)
+                actual_labels.append(original_label)
                 filenames.append(filename)
-                label_types.append("predicted")
 
-        return np.stack(embeddings), np.array(labels), filenames, label_types
+        return np.stack(embeddings), actual_labels, predicted_labels, filenames
 
     def run(self, start_iteration, num_iters=100):
         for local_iteration in range(num_iters):
             global_iteration = start_iteration + local_iteration
-            x, y, filenames, idx = self.manager.next_batch()
+            x, y, _, filenames, idx = self.manager.next_batch()
             train_loss, train_accuracy = self.model.train_step(x, y)
             self.communicator.send_metrics(global_iteration, train_accuracy, train_loss)
             print(f"Local Iteration {local_iteration}, Loss: {train_loss:.4f}")
-            embeddings, labels, filenames, label_types = self.gather_full_dataset_view(self.manager)
-            self.communicator.maybe_send(global_iteration, embeddings, labels, filenames, label_types)
+            embeddings, actual_labels, predicted_labels, filenames = self.gather_full_dataset_view(self.manager)
+            self.communicator.maybe_send(global_iteration, embeddings,  actual_labels, predicted_labels, filenames)
 
         unlabeled_loader = self.manager.get_unlabeled_loader()
         new_ids = self.sampler.select(unlabeled_loader, self.model)
