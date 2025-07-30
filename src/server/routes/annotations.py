@@ -27,8 +27,11 @@ def receive_human_annotations(payload: HumanAnnotation):
     else:
         annotations = {}
 
-    for idx, label in zip(payload.indices, payload.labels):
-        annotations[str(idx)] = label
+    for filename, idx, label in zip(payload.filenames, payload.indices, payload.labels):
+        annotations[str(idx)] = {
+            "label": label,
+            "filename": filename
+        }
 
     with open(HUMAN_ANNOTATIONS, "w") as f:
         json.dump(annotations, f, indent=2)
