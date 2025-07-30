@@ -66,6 +66,7 @@ You should see logs like
 ### `/annotate`  
 **GET** &  **POST**
 Receives a list of filenames and indices for which user annotations are requested.
+
 ---
 
 ### `/plot`  
