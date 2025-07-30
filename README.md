@@ -35,6 +35,17 @@ docker run \
 
 Once the Docker container is running, your FastAPI backend will expose the following HTTP routes at [http://localhost:8000](http://localhost:8000):
 
+###  `/latest_embeddings`  
+**GET** &  **POST**
+Displays the latest raw embeddings in a json format.  
+➡️ Visit this in your browser to view the embeddings, actual/predicted labels, and filenames.
+
+---
+###  `/3d_embeddings`  
+**GET** &  **POST**
+Displays the latest 3D embeddings in a json format.  (SUITABLE TO BE RENDERED IN FRONTEND)
+➡️ Visit this in your browser to view the embeddings, actual/predicted labels, and filenames. 
+
 ---
 
 ###  `/table`  
@@ -45,7 +56,7 @@ Displays the latest embedding table in a browser-friendly HTML format.
 ---
 
 ### `/metrics`  
-**POST**  
+**GET** &  **POST**
 Receives training metrics (accuracy and loss) from the backend training loop.  
 You should see logs like  
 `[FastAPI] Received metrics at iteration X` in your terminal.
@@ -53,13 +64,18 @@ You should see logs like
 ---
 
 ### `/annotate`  
-**POST**  
+**GET** &  **POST**
 Receives a list of filenames and indices for which user annotations are requested.  
 
-### `/annotate`  
+### `/human_annotations`  
+**POST**
+Fetches the current list of files with human annotations. (TO BE SENT VIA FRONTEND).
+---
+
+### `/plot`  
 **GET**  
-Fetches the current list of files that require human annotation.  
-➡️ Visit this in your browser or via frontend to see which files the system wants labeled.
+Renders an interactive plot for 3D visualization of the intermediate embeddings.  
+➡️ Visit this in your browser to explore.
 
 ---
 
@@ -75,6 +91,8 @@ You can also explore these endpoints interactively at:
 (FastAPI automatically generates Swagger UI)
 
 
-
+---
+## Payload Schemas
+Please refer to src/server/schemas.py to see what is expected at different APIs.
 
 
