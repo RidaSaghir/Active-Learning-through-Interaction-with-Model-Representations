@@ -1,6 +1,5 @@
-import numpy as np
-
 latest_embeddings = None
+latest_3d_embeddings = None
 latest_iteration = None
 latest_labels = None
 latest_filenames = None
