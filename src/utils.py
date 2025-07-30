@@ -1,4 +1,5 @@
 import torch
+import umap
 import json
 import os
 from torch.utils.data import DataLoader
@@ -27,3 +28,9 @@ def load_annotations(path=HUMAN_ANNOTATIONS):
     with open(path, "r") as f:
         data = json.load(f)
     return {int(k): v for k, v in data.items()}
+
+def compute_umap(embeddings, n_components: int = 3, random_state = 42):
+
+    reducer = umap.UMAP(n_components=n_components, random_state=random_state)
+    reduced = reducer.fit_transform(embeddings)
+    return reduced
