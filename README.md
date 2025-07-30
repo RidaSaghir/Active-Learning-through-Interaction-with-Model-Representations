@@ -65,11 +65,7 @@ You should see logs like
 
 ### `/annotate`  
 **GET** &  **POST**
-Receives a list of filenames and indices for which user annotations are requested.  
-
-### `/human_annotations`  
-**POST**
-Fetches the current list of files with human annotations. (TO BE SENT VIA FRONTEND).
+Receives a list of filenames and indices for which user annotations are requested.
 ---
 
 ### `/plot`  
@@ -81,7 +77,7 @@ Renders an interactive plot for 3D visualization of the intermediate embeddings.
 
 ### `/human_annotations`  
 **POST**  
-Accepts human-labeled indices and their corresponding labels.  
+Accepts human-labeled indices and their corresponding labels.  (TO BE SENT VIA FRONTEND).
 ➡️ These are saved to `human_annotations.json` and used in future training cycles.
 
 ---
