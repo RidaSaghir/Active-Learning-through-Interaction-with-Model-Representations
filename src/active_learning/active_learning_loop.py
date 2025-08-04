@@ -9,7 +9,7 @@ class UncertaintySampler:
         uncertainties = []
         model.eval()
         with torch.no_grad():
-            for x, _, _, idx in unlabeled_loader:
+            for x, _, _,_, idx in unlabeled_loader:
                 logits, _ = model(x)
                 probs = F.softmax(logits, dim=1)
                 entropy = -torch.sum(probs * torch.log(probs + 1e-8), dim=1)
