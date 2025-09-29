@@ -10,5 +10,7 @@ human_annotations: "human_annotations.json"
 learning_rate : 1e-3
 batch_size : 32
 per_class_count : 20
-num_annotation_suggestions : 5
-num_iterations : 5
+num_annotation_suggestions : 10
+#num_iterations : 5
+held_out_fold : 10
+epochs_before_query : 2

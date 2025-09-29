@@ -3,18 +3,21 @@ import torch
 import numpy as np
 
 class LabeledSetManager:
-    def __init__(self, full_dataset, labeled_indices, unlabeled_indices, batch_size=16):
+    def __init__(self, full_dataset, labeled_indices, unlabeled_indices, batch_size=16, num_workers=4):
         self.dataset = full_dataset
         self.labeled_indices = labeled_indices
         self.unlabeled_indices = unlabeled_indices
         self.batch_size = batch_size
+        self.num_workers = num_workers
         self._init_labeled_loader()
 
     def _init_labeled_loader(self):
         self.labeled_loader = DataLoader(
             Subset(self.dataset, self.labeled_indices),
             batch_size=self.batch_size,
-            shuffle=True
+            shuffle=True,
+            num_workers=self.num_workers,
+            pin_memory=True
         )
         self.labeled_iterator = iter(self.labeled_loader)
 
@@ -29,7 +32,8 @@ class LabeledSetManager:
 
     def get_unlabeled_loader(self):
         """Return a DataLoader over current unlabeled data (used in uncertainty sampling)."""
-        return DataLoader(Subset(self.dataset, self.unlabeled_indices), batch_size=self.batch_size)
+        return DataLoader(Subset(self.dataset, self.unlabeled_indices), batch_size=self.batch_size,
+                          shuffle=False, num_workers=self.num_workers, pin_memory=True)
 
     def add_from_unlabeled(self, indices):
         """Move given indices from unlabeled to labeled."""
@@ -47,3 +51,20 @@ class LabeledSetManager:
         """Yield (embedding, dummy_label, filename, index) for unlabeled data."""
         for i in self.unlabeled_indices:
             yield self.dataset[i]
+
+    def update_labels(self, idx_to_label: dict):
+        """Write labels into the dataset; move those idx from unlabeled->labeled."""
+        for idx, lbl in idx_to_label.items():
+            self.dataset.labels[idx] = lbl
+            if idx in self.unlabeled_indices:
+                self.unlabeled_indices.remove(idx)
+                self.labeled_indices.append(idx)
+        # refresh labeled loader because pool changed
+        self._init_labeled_loader()
+
+    def get_loader_for_indices(self, indices, batch_size=None, shuffle=True):
+        return DataLoader(
+            Subset(self.dataset, indices),
+            batch_size=batch_size or self.batch_size,
+            shuffle=shuffle
+        )

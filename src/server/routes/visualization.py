@@ -5,15 +5,21 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.decomposition import PCA
 from .. import state
+from utils.logging_utils import get_logger
 
 router = APIRouter()
+log = get_logger("imlvr.api_vis")
+
+
 
 @router.get("/plot")
 def plot_embeddings():
-    if state.latest_3d_embeddings is None:
-        return {"error": "No 3D embeddings to plot"}
+    if state.latest_embeddings is None:
+        log.warning("Plot requested but no embeddings")
+        return {"error": "No embeddings to plot"}
 
-    embeddings = state.latest_3d_embeddings.tolist()
+    log.info(f"Plot | iter={state.latest_iteration} | n={state.latest_embeddings.shape[0]}")
+    embeddings = state.latest_embeddings.tolist()
     actual_labels = state.latest_actual_labels
     predicted_labels = state.latest_predicted_labels
     filenames = state.latest_filenames

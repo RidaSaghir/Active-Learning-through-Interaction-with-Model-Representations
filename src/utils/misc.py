@@ -5,6 +5,7 @@ import os
 from torch.utils.data import DataLoader
 from sklearn.metrics import accuracy_score
 from config import HUMAN_ANNOTATIONS
+
 def evaluate_model(model, dataset, batch_size=32):
     model.eval()
     dataloader = DataLoader(dataset, batch_size=batch_size)
@@ -13,7 +14,7 @@ def evaluate_model(model, dataset, batch_size=32):
 
     with torch.no_grad():
         for batch in dataloader:
-            x, y, _, _ = batch  # x: embeddings, y: labels
+            x, y, *rest = batch  # x: embeddings, y: labels
             logits, _ = model(x)
             preds = torch.argmax(logits, dim=1)
             all_preds.extend(preds.cpu().numpy())
@@ -21,6 +22,14 @@ def evaluate_model(model, dataset, batch_size=32):
 
     acc = accuracy_score(all_labels, all_preds)
     return acc
+
+def diff_annotations(current: dict, seen: dict):
+    """Return only new or changed annotations."""
+    delta = {}
+    for idx, lbl in current.items():
+        if idx not in seen or seen[idx] != lbl:
+            delta[idx] = lbl
+    return delta
 
 def load_annotations(path=HUMAN_ANNOTATIONS):
     if not os.path.exists(path):

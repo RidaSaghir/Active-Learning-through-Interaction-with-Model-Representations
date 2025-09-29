@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from config import LEARNING_RATE
 
 class TrainableModel(nn.Module):
-    def __init__(self, input_dim=1024, embedding_dim=64, num_classes=10, lr=LEARNING_RATE):
+    def __init__(self, input_dim=1024, embedding_dim=3, num_classes=10, lr=LEARNING_RATE):
         super().__init__()
         self.embedding_layer = nn.Sequential(
             nn.Linear(input_dim, 256),
