@@ -9,8 +9,9 @@ check_point : "model_checkpoint.pth"
 human_annotations: "human_annotations.json"
 learning_rate : 1e-3
 batch_size : 32
-per_class_count : 20
+initial_labels_per_class_count : 20
 num_annotation_suggestions : 10
 #num_iterations : 5
 held_out_fold : 10
-epochs_before_query : 2
+epochs_before_query : 1
+accuracy_target: 0.80
