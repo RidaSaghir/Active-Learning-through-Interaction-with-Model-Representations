@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 import torch
 from torch.utils.data import Dataset
-from config import PER_CLASS_COUNT, DATA_DIR, SAMPLE_RATE, TARGET_DURATION, EMBEDDING_DIM
+from config import INITIAL_LABELS_PER_CLASS_COUNT, DATA_DIR, SAMPLE_RATE, TARGET_DURATION, EMBEDDING_DIM
 from dataset.cache_dataset import UrbanSoundCachedEmbeddingDataset
 from utils.logging_utils import get_logger, log_duration
 log = get_logger("loader")
@@ -108,7 +108,7 @@ class UrbanSoundLoader:
         test_df = df[df['fold'] == held_out_fold]
 
         # Taking PER_CLASS_COUNT samples from every class for training
-        labeled_df = train_df.groupby('class_code', group_keys=False).apply(lambda x: x.sample(n=PER_CLASS_COUNT, random_state=42))
+        labeled_df = train_df.groupby('class_code', group_keys=False).apply(lambda x: x.sample(n=INITIAL_LABELS_PER_CLASS_COUNT, random_state=42))
         unlabeled_df = train_df.drop(labeled_df.index)
         combined_df = pd.concat([labeled_df, unlabeled_df]).reset_index(drop=True)
         labeled_indices = list(range(len(labeled_df)))
