@@ -10,3 +10,8 @@ Thumbs.db
 __pycache__/
 *.pyc
 *.pyo
+
+# Result and log files
+src/human_annotations.json
+src/model_checkpoint.pth
+src/logs
