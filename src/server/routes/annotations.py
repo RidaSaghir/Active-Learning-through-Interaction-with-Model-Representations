@@ -26,27 +26,38 @@ def get_annotation_requests():
 
 @router.post("/human_annotations")
 def receive_human_annotations(payload: HumanAnnotation):
-    # Load existing (flat) map or start empty
     if os.path.exists(HUMAN_ANNOTATIONS):
         with open(HUMAN_ANNOTATIONS, "r") as f:
             annotations = json.load(f)
     else:
         annotations = {}
 
-    # Update flat mapping: idx -> label (ints as strings in JSON)
+    updated = 0
     for filename, idx, label in zip(payload.filenames, payload.indices, payload.labels):
-        annotations[str(int(idx))] = int(label)
+        key = str(int(idx))
+        val = int(label)
+        # only update if new or changed
+        if annotations.get(key) != val:
+            annotations[key] = val
+            updated += 1
 
-    # Atomic write to avoid partial files
-    tmp = f"{HUMAN_ANNOTATIONS}.tmp"
-    with open(tmp, "w") as f:
-        json.dump(annotations, f, indent=2)
-    os.replace(tmp, HUMAN_ANNOTATIONS)
+    if updated > 0:
+        tmp = f"{HUMAN_ANNOTATIONS}.tmp"
+        with open(tmp, "w") as f:
+            json.dump(annotations, f, indent=2)
+        os.replace(tmp, HUMAN_ANNOTATIONS)
+        # clear pending suggestions once consumed
+        try:
+            from .. import state
+            state.suggested_annotation_items = []
+        except Exception:
+            pass
+        log.info(f"Stored human annotations | updated={updated} | total={len(annotations)}")
+    else:
+        # nothing new — keep it quiet
+        log.debug("Human annotations POST contained no new labels.")
 
-    log.info(f"Stored human annotations | updated={len(payload.indices)} | total={len(annotations)}")
-    # clear suggestions now that labels arrived
-    #state.suggested_annotation_items = []
-    return {"status": "ok", "updated": len(payload.indices)}
+    return {"status": "ok", "updated": updated, "total": len(annotations)}
 
 @router.get("/classes")
 def get_class_map():
