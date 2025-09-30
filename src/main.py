@@ -1,4 +1,5 @@
 import os
+import sys
 import math
 import threading
 import torch
@@ -15,7 +16,9 @@ from server.app import create_app
 from server import state
 from utils.misc import evaluate_model, load_annotations
 from utils.logging_utils import setup_logging, get_logger
-from config import CHECKPOINT, BATCH_SIZE, HELD_OUT_FOLD, EPOCHS_BEFORE_QUERY
+from utils.curve import append_curve_row, save_curve_png
+from config import (CHECKPOINT, BATCH_SIZE, HELD_OUT_FOLD, EPOCHS_BEFORE_QUERY, NUM_ANNOTATION_SUGGESTIONS,
+                    INITIAL_LABELS_PER_CLASS_COUNT, ACCURACY_TARGET,)
 
 def start_api_in_thread(host="0.0.0.0", port=8000):
     app = create_app()
@@ -88,7 +91,7 @@ def run_trainer():
     last_seen = len(load_annotations())
     while True:
         # 1) Incorporate any NEW labels once, before training this cycle
-        added = loop._apply_new_annotations_and_train(epochs=1, replay_fraction=0.25)
+        added = loop._apply_new_annotations_and_train(epochs=1, replay_fraction=0.0)
         if added:
             log.info(f"Applied new human annotations | +{added}")
 
@@ -102,6 +105,19 @@ def run_trainer():
         # 3) Evaluate + send + checkpoint
         acc = evaluate_model(model, test_dataset)
         log.info(f"Epoch end | iter={total_iterations} | test_acc={acc:.4f} | last_loss={last_loss:.4f}")
+        curve_csv = os.path.join("logs", "learning_curve.csv")
+        curve_png = os.path.join("logs", "learning_curve.png")
+        # how many human labels are in play right now
+        human_labels_so_far = len(load_annotations())
+        total_labeled_now = len(labeled_manager.labeled_indices)
+        append_curve_row(curve_csv,
+                         iteration=total_iterations,
+                         total_labeled=total_labeled_now,
+                         human_labeled=human_labels_so_far,
+                         acc=acc,
+                         loss=last_loss)
+        save_curve_png(curve_csv, curve_png, init_labels=INITIAL_LABELS_PER_CLASS_COUNT, human_annotations=NUM_ANNOTATION_SUGGESTIONS)
+        log.info(f"Sent metrics to {curve_csv}")
         communicator.send_metrics(total_iterations, acc, last_loss)
         torch.save({
             'model_state_dict': model.state_dict(),
@@ -111,6 +127,8 @@ def run_trainer():
             'unlabeled_indices': labeled_manager.unlabeled_indices,
         }, CHECKPOINT)
         log.info("Checkpoint saved")
+
+        if acc >= ACCURACY_TARGET: sys.exit(0)
 
         # 4) Wait for more labels
         while True:
