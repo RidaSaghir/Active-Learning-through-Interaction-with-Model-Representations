@@ -105,8 +105,8 @@ def run_trainer():
         # 3) Evaluate + send + checkpoint
         acc = evaluate_model(model, test_dataset)
         log.info(f"Epoch end | iter={total_iterations} | test_acc={acc:.4f} | last_loss={last_loss:.4f}")
-        curve_csv = os.path.join("logs", "learning_curve.csv")
-        curve_png = os.path.join("logs", "learning_curve.png")
+        curve_csv = os.path.join("logs", f"learning_curve_{INITIAL_LABELS_PER_CLASS_COUNT*10}_{NUM_ANNOTATION_SUGGESTIONS}.csv")
+        curve_png = os.path.join("logs", f"learning_curve_{INITIAL_LABELS_PER_CLASS_COUNT*10}_{NUM_ANNOTATION_SUGGESTIONS}.png")
         # how many human labels are in play right now
         human_labels_so_far = len(load_annotations())
         total_labeled_now = len(labeled_manager.labeled_indices)
