@@ -4,6 +4,9 @@ latest_iteration = None
 latest_predicted_labels = None
 latest_actual_labels = None
 latest_filenames = None
+indices = None
+is_labeled = None
+cues = None
 
 latest_metrics = {}
 suggested_annotation_filenames = []

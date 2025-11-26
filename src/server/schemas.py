@@ -1,5 +1,5 @@
 from pydantic import BaseModel, validator
-from typing import List
+from typing import List, Dict
 
 class EmbeddingPayload(BaseModel):
     iteration: int
@@ -8,6 +8,9 @@ class EmbeddingPayload(BaseModel):
     actual_labels: List[str]
     predicted_labels: List[str]
     filenames: List[str]
+    indices: List[int]
+    is_labeled: List[bool]
+    cues: Dict[str, List[float]]
 
 class MetricsPayload(BaseModel):
     iteration: int
