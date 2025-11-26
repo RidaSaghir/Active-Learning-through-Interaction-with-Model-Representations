@@ -11,6 +11,13 @@ class LabeledSetManager:
         self.num_workers = num_workers
         self._init_labeled_loader()
 
+    def get_class_counts(self):
+        counts = {}
+        for idx in self.labeled_indices:
+            cls = int(self.dataset.labels[idx])  # class code (e.g., 0..C-1)
+            counts[cls] = counts.get(cls, 0) + 1
+        return counts
+
     def _init_labeled_loader(self):
         self.labeled_loader = DataLoader(
             Subset(self.dataset, self.labeled_indices),
