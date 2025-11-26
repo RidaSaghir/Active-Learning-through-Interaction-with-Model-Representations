@@ -25,19 +25,22 @@ class RestCommunicator:
         self.session.mount("http://", HTTPAdapter(max_retries=retry))
         self.session.mount("https://", HTTPAdapter(max_retries=retry))
 
-    def maybe_send(self, iteration, embeddings, actual_labels, predicted_labels, filenames):
+    def maybe_send(self, iteration, embeddings, actual_labels, predicted_labels, filenames, indices, is_labeled, cues):
         """Send embeddings every `interval` iterations."""
         if iteration % self.interval == 0:
-            self.send_embeddings(iteration, embeddings, actual_labels, predicted_labels, filenames)
+            self.send_embeddings(iteration, embeddings, actual_labels, predicted_labels, filenames, indices, is_labeled, cues)
 
-    def send_embeddings(self, iteration, embeddings, actual_labels, predicted_labels, filenames):
+    def send_embeddings(self, iteration, embeddings, actual_labels, predicted_labels, filenames, indices, is_labeled, cues):
         payload = {
             "iteration": iteration,
             "embedding_shape": list(embeddings.shape),
             "embeddings": embeddings.tolist(),
             "actual_labels": actual_labels,
             "predicted_labels": predicted_labels,
-            "filenames": filenames
+            "filenames": filenames,
+            "indices": indices,
+            "is_labeled": is_labeled.tolist(),
+            "cues": {name: arr.tolist() for name, arr in cues.items()},
         }
         try:
             r = self.session.post(self.embeddings_url, json=payload, timeout=self.timeout)

@@ -7,7 +7,7 @@ from utils.logging_utils import get_logger
 router = APIRouter()
 log = get_logger("imlvr.api_embeddings")
 @router.post("/latest_embeddings")
-def receive_latest_embeddings(payload: EmbeddingPayload):
+def post_latest_embeddings(payload: EmbeddingPayload):
     arr = np.array(payload.embeddings)
     if arr.ndim != 2 or arr.shape[1] != 3:   # expect 3D now
         return {"error": f"Expected (N,3) embeddings, got {arr.shape}"}
@@ -16,7 +16,14 @@ def receive_latest_embeddings(payload: EmbeddingPayload):
     state.latest_actual_labels = payload.actual_labels
     state.latest_predicted_labels = payload.predicted_labels
     state.latest_filenames = payload.filenames
-    log.info(f"Received embeddings | iter={payload.iteration} | shape={arr.shape}")
+    state.indices = payload.indices
+    state.is_labeled = payload.is_labeled
+    state.cues = payload.cues
+    log.info(
+        f"Received embeddings | iter={payload.iteration} | "
+        f"shape={tuple(payload.embedding_shape)} | "
+        f"cues={list(payload.cues.keys())}"
+    )
     return {"status": "ok"}
 
 @router.get("/latest_embeddings")
@@ -31,5 +38,8 @@ def get_latest_embeddings():
         "embeddings": state.latest_embeddings.tolist(),
         "actual_labels": state.latest_actual_labels,
         "predicted_labels": state.latest_predicted_labels,
-        "filenames": state.latest_filenames
+        "filenames": state.latest_filenames,
+        "indices": state.indices,
+        "is_labeled": state.is_labeled,
+        "cues": state.cues,
     }
