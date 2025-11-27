@@ -5,65 +5,168 @@
     <title>3D Embeddings Plot</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
-<body>
-    <h2>3D Embeddings - Iteration {{ITER}}</h2>
+<body style="background:#f4f5fa; margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;">
+    <div style="
+        max-width: 1200px;
+        margin: 1.5rem auto;
+        padding: 1.5rem 1.75rem 1.75rem;
+        background:#ffffff;
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    ">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+            <div>
+                <h2 style="margin:0 0 0.25rem 0; font-size:1.4rem;">
+                    Human-guided active learning
+                </h2>
+                <div style="font-size:0.9rem; color:#555;">
+                    <strong>Iteration {{ITER}}</strong> · Humans browse informative samples,
+                    not just whatever the model throws at them.
+                </div>
+            </div>
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:#888; text-align:right;">
+                Human-in-the-loop Active Learning · Demo
+            </div>
+        </div>
 
-    <div style="margin-bottom: 0.5rem; font-family: sans-serif; font-size: 14px;">
-        <label>
-            <input type="checkbox" id="hideLabeledCheckbox" />
-            Hide labeled samples
-        </label>
-        &nbsp;&nbsp;&nbsp;
-        <label>
-            K (hotspots per cue):
-            <input type="number" id="kInput" value="10" min="1" max="500" style="width: 60px;" />
-        </label>
-        &nbsp;&nbsp;&nbsp;
-        <label>
-            Hotspots:
-            <select id="subsetSelect">
-                <option value="all">All visible</option>
-                <option value="coverage">Coverage hotspots (K)</option>
-                <option value="density">Density hotspots (K)</option>
-                <option value="both">Coverage ∩ density (K)</option>
-            </select>
-        </label>
-        &nbsp;&nbsp;&nbsp;
-        <!-- NEW: cue toggles -->
-        <label>
-            <input type="checkbox" id="highUncCheckbox" />
-            High uncertainty only
-        </label>
-        &nbsp;
-        <label>
-            <input type="checkbox" id="highDivCheckbox" />
-            High diversity only
-        </label>
-        &nbsp;
-        <label>
-            <input type="checkbox" id="highNovCheckbox" />
-            High novelty only (circles)
-        </label>
-        &nbsp;&nbsp;
-        <button id="updateKBtn">Update</button>
-    </div>
+        <!-- STEP BAR -->
+        <div style="margin-top:1rem; display:flex; flex-wrap:wrap; gap:0.75rem; font-size:0.78rem; color:#444;">
+            <div style="padding:0.35rem 0.6rem; border-radius:999px; background:#f1fbf4;">
+                <strong>Step 1:</strong> Glance through the candidates in 3D space.
+            </div>
+            <div style="padding:0.35rem 0.6rem; border-radius:999px; background:#f1f3ff;">
+                <strong>Step 2:</strong> Choose an informative sample by taking help of <em>cues</em>
+                (uncertainty, diversity, novelty, coverage, density).
+            </div>
+            <div style="padding:0.35rem 0.6rem; border-radius:999px; background:#fff7e6;">
+                <strong>Step 3:</strong> Annotate and steer the model’s next move.
+            </div>
+        </div>
 
-    <div id="plot" style="width: 100%; height: 600px;"></div>
+        <!-- CONTROL BAR -->
+        <div style="
+            margin-top:1rem;
+            padding:0.6rem 0.8rem;
+            border-radius:10px;
+            background:#f8f9ff;
+            display:flex;
+            flex-wrap:wrap;
+            align-items:flex-end;
+            gap:1rem;
+            font-size:0.85rem;
+        ">
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Samples
+                </div>
+                <label>
+                    <input type="checkbox" id="hideLabeledCheckbox" />
+                    Hide labeled
+                </label>
+            </div>
 
-    <div id="classLegend" style="margin-top: 1rem; font-family: sans-serif; font-size: 14px;"></div>
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Hotspot budget
+                </div>
+                <label>
+                    K:
+                    <input type="number" id="kInput" value="10" min="1" max="500" style="width:60px;" />
+                </label>
+            </div>
 
-    <div style="margin-top: 1rem; font-family: sans-serif; font-size: 13px;">
-        <strong>Visual encodings:</strong><br>
-        • <strong>Color</strong>: predicted class (10-class palette, see legend).<br>
-        • <strong>Size</strong>: larger markers = higher <em>uncertainty</em>.<br>
-        • <strong>Opacity</strong>: opaque = high <em>diversity</em> (far from labeled), faded = redundant.<br>
-        • <strong>Symbol (shape)</strong> from <em>novelty</em> (binned):<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;◯ circle = high novelty<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;□ square = medium novelty<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;✕ x = low novelty<br>
-        • <strong>Red borders</strong>: top-K <em>coverage</em> points (high class-coverage pressure).<br>
-        • <strong>Black borders</strong>: top-K <em>density</em> points (high local density).<br>
-        • <strong>Purple borders</strong>: points that are both coverage & density hotspots.
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Focus
+                </div>
+                <select id="subsetSelect">
+                    <option value="all">All visible</option>
+                    <option value="coverage">Coverage hotspots (K)</option>
+                    <option value="density">Density hotspots (K)</option>
+                    <option value="both">Coverage ∩ density (K)</option>
+                </select>
+            </div>
+
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Human attention filters
+                </div>
+                <label style="margin-right:0.6rem;">
+                    <input type="checkbox" id="highUncCheckbox" />
+                    High uncertainty
+                </label>
+                <label style="margin-right:0.6rem;">
+                    <input type="checkbox" id="highDivCheckbox" />
+                    High diversity
+                </label>
+                <label>
+                    <input type="checkbox" id="highNovCheckbox" />
+                    High novelty (circles)
+                </label>
+            </div>
+
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Camera
+                </div>
+                <label>
+                    <input type="checkbox" id="autoRotateCheckbox" checked />
+                    Auto rotate
+                </label>
+            </div>
+
+            <div style="margin-left:auto;">
+                <button id="updateKBtn" style="
+                    padding:0.35rem 0.9rem;
+                    border-radius:999px;
+                    border:none;
+                    background:#4f46e5;
+                    color:white;
+                    font-size:0.8rem;
+                    cursor:pointer;
+                ">
+                    Update view
+                </button>
+            </div>
+        </div>
+
+        <!-- PRESETS -->
+        <div style="margin-top:0.6rem; font-size:0.8rem; color:#444;">
+            Presets (for demo):
+            <button type="button" id="preset1" style="margin-left:0.3rem; padding:0.25rem 0.7rem; border-radius:999px; border:1px solid #d0d3ff; background:#fff;">
+                Uncertain coverage
+            </button>
+            <button type="button" id="preset2" style="margin-left:0.3rem; padding:0.25rem 0.7rem; border-radius:999px; border:1px solid #d0f0d8; background:#fff;">
+                Diverse & novel
+            </button>
+            <button type="button" id="preset3" style="margin-left:0.3rem; padding:0.25rem 0.7rem; border-radius:999px; border:1px solid #ffe1a6; background:#fff;">
+                Dense regions
+            </button>
+        </div>
+
+        <!-- PLOT -->
+        <div id="plot" style="width: 100%; height: 600px; margin-top:1rem;"></div>
+
+        <!-- HOVER INFO + LEGEND + EXPLANATION -->
+        <div id="hoverInfo" style="margin-top:0.5rem; font-size:0.8rem; color:#333; min-height:1.2em;"></div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:2rem; margin-top:0.75rem;">
+            <div id="classLegend" style="font-size: 0.85rem;"></div>
+
+            <div style="font-size: 0.8rem; max-width: 420px; color:#444;">
+                <strong>Visual encodings (how humans read the model):</strong><br>
+                • <strong>Color</strong>: predicted class (see legend).<br>
+                • <strong>Size</strong>: larger markers = higher <em>uncertainty</em> &rarr; the model is unsure.<br>
+                • <strong>Opacity</strong>: more opaque = more <em>diverse</em> &rarr; different from what’s already labeled.<br>
+                • <strong>Shape</strong> from <em>novelty</em>: ◯ high, □ medium, ✕ low.<br>
+                • <strong>Red borders</strong>: class coverage pressure (K highest).<br>
+                • <strong>Black borders</strong>: local density pressure (K highest).<br>
+                • <strong>Purple borders</strong>: where coverage and density both demand attention.<br>
+                <br>
+                Instead of labeling random suggestions, the annotator can
+                <em>choose</em> which trade-offs to prioritize and shape the model’s learning path.
+            </div>
+        </div>
     </div>
 
     <script>
@@ -103,7 +206,6 @@
         const densityNorm     = normalize(density);
         const coverageNorm    = normalize(coverage);
 
-        // Quantile helpers for "high" thresholds (e.g., top ~1/3)
         function quantile(normArr, q) {
             const finite = normArr.filter(Number.isFinite);
             if (!finite.length) return NaN;
@@ -112,11 +214,10 @@
             return sorted[idx];
         }
 
-        const UNC_HIGH  = quantile(uncertaintyNorm, 0.66);
-        const DIV_HIGH  = quantile(diversityNorm,   0.66);
-        const NOV_HIGH  = quantile(noveltyNorm,     0.66);
+        const UNC_HIGH = quantile(uncertaintyNorm, 0.66);
+        const DIV_HIGH = quantile(diversityNorm,   0.66);
+        const NOV_HIGH = quantile(noveltyNorm,     0.66);
 
-        // Bin diversity into 3 bins for opacity
         function binDiversity(divNorm) {
             const finite = divNorm.filter(Number.isFinite);
             if (!finite.length) {
@@ -137,9 +238,8 @@
         const diversityBins = binDiversity(diversityNorm); // 0,1,2
         const opacityPerBin = [0.15, 0.45, 0.9];  // low / medium / high
 
-        // Hover text with all cues
         const hoverTextsAll = filenames.map((f, i) =>
-            `File: ${f}` +
+            `<b>${f}</b>` +
             `<br>Actual: ${actualLabels[i]}` +
             `<br>Predicted: ${predictedLabels[i]}` +
             `<br>is_labeled: ${isLabeled[i]}` +
@@ -187,7 +287,6 @@
         }
         buildClassLegend();
 
-        // Visual encodings
         const sizeAll = uncertaintyNorm.map(u => 3 + 17 * (u || 0));  // 3..20
 
         const symbolAll = (function() {
@@ -218,13 +317,18 @@
             return idxs;
         }
 
-        const hideCheckbox   = document.getElementById("hideLabeledCheckbox");
-        const kInput         = document.getElementById("kInput");
-        const updateKBtn     = document.getElementById("updateKBtn");
-        const subsetSelect   = document.getElementById("subsetSelect");
+        const hideCheckbox    = document.getElementById("hideLabeledCheckbox");
+        const kInput          = document.getElementById("kInput");
+        const updateKBtn      = document.getElementById("updateKBtn");
+        const subsetSelect    = document.getElementById("subsetSelect");
         const highUncCheckbox = document.getElementById("highUncCheckbox");
         const highDivCheckbox = document.getElementById("highDivCheckbox");
         const highNovCheckbox = document.getElementById("highNovCheckbox");
+        const autoRotateCheckbox = document.getElementById("autoRotateCheckbox");
+
+        const preset1Btn = document.getElementById("preset1");
+        const preset2Btn = document.getElementById("preset2");
+        const preset3Btn = document.getElementById("preset3");
 
         function computeHotspotIndices(k, values, baseVisibleIdxs) {
             const candidates = [];
@@ -242,13 +346,11 @@
         function makeData(hideLabeledFlag, k, subsetMode, filters) {
             const baseVisibleIdxs = getBaseVisibleIndices(hideLabeledFlag);
 
-            // hotspots based on base set
             const covIdxGlobal = computeHotspotIndices(k, coverageNorm, baseVisibleIdxs);
             const denIdxGlobal = computeHotspotIndices(k, densityNorm, baseVisibleIdxs);
             const covSet = new Set(covIdxGlobal);
             const denSet = new Set(denIdxGlobal);
 
-            // subset by hotspots (class coverage / density)
             let visibleIdxs;
             if (subsetMode === "coverage") {
                 visibleIdxs = baseVisibleIdxs.filter(i => covSet.has(i));
@@ -260,7 +362,6 @@
                 visibleIdxs = baseVisibleIdxs.slice(); // all
             }
 
-            // additional filters based on cues
             if (filters.onlyHighUnc && Number.isFinite(UNC_HIGH)) {
                 visibleIdxs = visibleIdxs.filter(i =>
                     Number.isFinite(uncertaintyNorm[i]) && uncertaintyNorm[i] >= UNC_HIGH
@@ -272,7 +373,6 @@
                 );
             }
             if (filters.onlyHighNov && Number.isFinite(NOV_HIGH)) {
-                // "circle only" = high novelty
                 visibleIdxs = visibleIdxs.filter(i =>
                     Number.isFinite(noveltyNorm[i]) && noveltyNorm[i] >= NOV_HIGH
                 );
@@ -311,6 +411,9 @@
                         }
                     });
 
+                    // store original indices for hoverInfo
+                    const originalIndices = idxsThis.slice();
+
                     traces.push({
                         name: `${cls} (div bin ${bin})`,
                         x: pick(xAll, idxsThis),
@@ -320,9 +423,10 @@
                         type: 'scatter3d',
                         text: pick(hoverTextsAll, idxsThis),
                         hoverinfo: 'text',
+                        _indices: originalIndices,
                         marker: {
                             size: pick(sizeAll, idxsThis),
-                            color: pick(colorIndexAll, idxsThis),  // numeric -> colorscale
+                            color: pick(colorIndexAll, idxsThis),
                             colorscale: colorScale,
                             cmin: 0,
                             cmax: nClasses - 1,
@@ -333,7 +437,7 @@
                                 width: lineWidths
                             },
                             colorbar: {
-                                title: 'Predicted class index',
+                                title: 'Predicted class',
                                 thickness: 15
                             }
                         },
@@ -347,13 +451,78 @@
         }
 
         const layout = {
-            scene: {aspectmode: "cube"},
+            scene: {
+                aspectmode: "cube",
+                camera: {
+                    eye: { x: 1.8, y: 1.8, z: 1.4 }
+                }
+            },
             legend: {orientation: "h"},
             margin: {l: 0, r: 0, t: 0, b: 0},
             showlegend: false
         };
 
         const gd = document.getElementById('plot');
+        const hoverInfoEl = document.getElementById('hoverInfo');
+
+        let angle = 0;
+        let isSpinning = false;
+        let spinFrameId = null;
+        let eventsAttached = false;
+
+        function spin() {
+            if (!isSpinning) return;
+            angle += 0.003;
+            const r = 1.8;
+            Plotly.relayout(gd, {
+                'scene.camera.eye': {
+                    x: r * Math.cos(angle),
+                    y: r * Math.sin(angle),
+                    z: 1.4
+                }
+            });
+            spinFrameId = requestAnimationFrame(spin);
+        }
+
+        function startSpin() {
+            if (isSpinning) return;
+            isSpinning = true;
+            spin();
+        }
+
+        function stopSpin() {
+            isSpinning = false;
+            if (spinFrameId !== null) {
+                cancelAnimationFrame(spinFrameId);
+                spinFrameId = null;
+            }
+        }
+        function attachPlotEvents() {
+            if (eventsAttached) return;
+            eventsAttached = true;
+
+            // Hover feedback: show currently hovered point
+            gd.on('plotly_hover', evt => {
+                const pt = evt.points[0];
+                const trace = pt.data;
+                const localIdx = pt.pointIndex;
+                const globalIdx = trace._indices ? trace._indices[localIdx] : null;
+                if (globalIdx != null) {
+                    hoverInfoEl.innerHTML =
+                        `Selected: <strong>${filenames[globalIdx]}</strong>` +
+                        ` · Pred: ${predictedLabels[globalIdx]}` +
+                        ` · Unc: ${uncertainty[globalIdx]?.toFixed(2)}` +
+                        ` · Div: ${diversity[globalIdx]?.toFixed(2)}` +
+                        ` · Nov: ${novelty[globalIdx]?.toFixed(2)}`;
+                }
+            });
+
+            gd.on('plotly_unhover', () => {
+                hoverInfoEl.innerHTML = "";
+            });
+
+        }
+
 
         function updatePlot() {
             const kVal       = parseInt(kInput.value) || 10;
@@ -365,18 +534,67 @@
                 onlyHighNov: highNovCheckbox.checked
             };
             const newData = makeData(hideFlag, kVal, subsetMode, filters);
-            Plotly.react(gd, newData, layout);
+            Plotly.react(gd, newData, layout, {
+                displaylogo: false,
+                modeBarButtonsToRemove: [
+                    'toImage', 'select2d', 'lasso2d',
+                    'hoverCompareCartesian', 'hoverClosestCartesian',
+                    'resetCameraLastSave3d'
+                ]
+            }).then(() => {
+                attachPlotEvents();
+                if (autoRotateCheckbox.checked) {
+                    startSpin();
+                }
+            });
         }
 
-        // Initial plot
-        updatePlot();
-
+        // Controls
         hideCheckbox.addEventListener('change', updatePlot);
         updateKBtn.addEventListener('click', updatePlot);
         subsetSelect.addEventListener('change', updatePlot);
         highUncCheckbox.addEventListener('change', updatePlot);
         highDivCheckbox.addEventListener('change', updatePlot);
         highNovCheckbox.addEventListener('change', updatePlot);
+
+        autoRotateCheckbox.addEventListener('change', () => {
+            if (autoRotateCheckbox.checked) {
+                startSpin();
+            } else {
+                stopSpin();
+            }
+        });
+
+        // Presets matching your story
+        preset1Btn.addEventListener('click', () => {
+            kInput.value = 20;
+            subsetSelect.value = 'coverage';
+            highUncCheckbox.checked = true;
+            highDivCheckbox.checked = false;
+            highNovCheckbox.checked = false;
+            updatePlot();
+        });
+
+        preset2Btn.addEventListener('click', () => {
+            kInput.value = 50;
+            subsetSelect.value = 'all';
+            highUncCheckbox.checked = false;
+            highDivCheckbox.checked = true;
+            highNovCheckbox.checked = true;
+            updatePlot();
+        });
+
+        preset3Btn.addEventListener('click', () => {
+            kInput.value = 30;
+            subsetSelect.value = 'density';
+            highUncCheckbox.checked = false;
+            highDivCheckbox.checked = false;
+            highNovCheckbox.checked = false;
+            updatePlot();
+        });
+
+        // Initial render
+        updatePlot();
     </script>
 </body>
 </html>

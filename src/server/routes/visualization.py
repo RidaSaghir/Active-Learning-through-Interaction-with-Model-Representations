@@ -18,15 +18,32 @@ def plot_embeddings():
         log.warning("Plot requested but no embeddings")
         return {"error": "No embeddings to plot"}
 
-    log.info(f"Plot | iter={state.latest_iteration} | n={state.latest_embeddings.shape[0]}")
-    template_path = Path(__file__).parent.parent / "plot.html"
+    log.info(
+        f"Plot | iter={state.latest_iteration} | "
+        f"n={state.latest_embeddings.shape[0]}"
+    )
+
+    # adjust this path if needed
+    template_path = Path(__file__).resolve().parent.parent / "plot.html"
     html_template = template_path.read_text(encoding="utf-8")
-    html = html_template.replace("{{EMBEDDINGS}}", json.dumps(state.latest_embeddings.tolist())) \
-        .replace("{{LABELS}}", json.dumps(state.latest_actual_labels)) \
-        .replace("{{PRED}}", json.dumps(state.latest_predicted_labels)) \
-        .replace("{{CUES}}", json.dumps(state.cues or {})) \
-        .replace("{{FILENAMES}}", json.dumps(state.latest_filenames)) \
-        .replace("{{ISLABELED}}", json.dumps(state.is_labeled or []))
+
+    embeddings = state.latest_embeddings.tolist()
+    actual_labels = state.latest_actual_labels
+    predicted_labels = state.latest_predicted_labels
+    filenames = state.latest_filenames
+    cues = state.cues or {}
+    is_labeled = state.is_labeled or []
+
+    html = (
+        html_template
+        .replace("{{ITER}}", str(state.latest_iteration))
+        .replace("{{EMBEDDINGS}}", json.dumps(embeddings))
+        .replace("{{LABELS}}", json.dumps(actual_labels))
+        .replace("{{PRED}}", json.dumps(predicted_labels))
+        .replace("{{CUES}}", json.dumps(cues))
+        .replace("{{FILENAMES}}", json.dumps(filenames))
+        .replace("{{ISLABELED}}", json.dumps(is_labeled))
+    )
 
     return HTMLResponse(content=html)
 
