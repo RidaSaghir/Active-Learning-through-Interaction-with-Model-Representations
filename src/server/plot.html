@@ -18,7 +18,34 @@
             K (hotspots per cue):
             <input type="number" id="kInput" value="10" min="1" max="500" style="width: 60px;" />
         </label>
-        <button id="updateKBtn">Update hotspots</button>
+        &nbsp;&nbsp;&nbsp;
+        <label>
+            Hotspots:
+            <select id="subsetSelect">
+                <option value="all">All visible</option>
+                <option value="coverage">Coverage hotspots (K)</option>
+                <option value="density">Density hotspots (K)</option>
+                <option value="both">Coverage ∩ density (K)</option>
+            </select>
+        </label>
+        &nbsp;&nbsp;&nbsp;
+        <!-- NEW: cue toggles -->
+        <label>
+            <input type="checkbox" id="highUncCheckbox" />
+            High uncertainty only
+        </label>
+        &nbsp;
+        <label>
+            <input type="checkbox" id="highDivCheckbox" />
+            High diversity only
+        </label>
+        &nbsp;
+        <label>
+            <input type="checkbox" id="highNovCheckbox" />
+            High novelty only (circles)
+        </label>
+        &nbsp;&nbsp;
+        <button id="updateKBtn">Update</button>
     </div>
 
     <div id="plot" style="width: 100%; height: 600px;"></div>
@@ -41,14 +68,13 @@
 
     <script>
         // ----- Data from backend -----
-        const embeddings   = {{EMBEDDINGS}};
-        const actualLabels = {{LABELS}};
+        const embeddings      = {{EMBEDDINGS}};
+        const actualLabels    = {{LABELS}};
         const predictedLabels = {{PRED}};
-        const filenames    = {{FILENAMES}};
-        const cues         = {{CUES}};
-        const isLabeledRaw = {{ISLABELED}};
+        const filenames       = {{FILENAMES}};
+        const cues            = {{CUES}};
+        const isLabeledRaw    = {{ISLABELED}};
 
-        // Normalize is_labeled to strict booleans
         const isLabeled = isLabeledRaw.map(v => (v === true || v === "true" || v === 1));
 
         const xAll = embeddings.map(e => e[0]);
@@ -77,6 +103,40 @@
         const densityNorm     = normalize(density);
         const coverageNorm    = normalize(coverage);
 
+        // Quantile helpers for "high" thresholds (e.g., top ~1/3)
+        function quantile(normArr, q) {
+            const finite = normArr.filter(Number.isFinite);
+            if (!finite.length) return NaN;
+            const sorted = [...finite].sort((a, b) => a - b);
+            const idx = Math.floor(q * (sorted.length - 1));
+            return sorted[idx];
+        }
+
+        const UNC_HIGH  = quantile(uncertaintyNorm, 0.66);
+        const DIV_HIGH  = quantile(diversityNorm,   0.66);
+        const NOV_HIGH  = quantile(noveltyNorm,     0.66);
+
+        // Bin diversity into 3 bins for opacity
+        function binDiversity(divNorm) {
+            const finite = divNorm.filter(Number.isFinite);
+            if (!finite.length) {
+                return divNorm.map(_ => 1); // everything "medium"
+            }
+            const sorted = [...finite].sort((a, b) => a - b);
+            const q33 = sorted[Math.floor(0.33 * (sorted.length - 1))];
+            const q66 = sorted[Math.floor(0.66 * (sorted.length - 1))];
+
+            return divNorm.map(v => {
+                if (!Number.isFinite(v)) return 1;
+                if (v <= q33) return 0;   // low diversity
+                if (v <= q66) return 1;   // medium
+                return 2;                 // high
+            });
+        }
+
+        const diversityBins = binDiversity(diversityNorm); // 0,1,2
+        const opacityPerBin = [0.15, 0.45, 0.9];  // low / medium / high
+
         // Hover text with all cues
         const hoverTextsAll = filenames.map((f, i) =>
             `File: ${f}` +
@@ -101,7 +161,6 @@
 
         const colorIndexAll = predictedLabels.map(lbl => classToIndex[lbl]);
 
-        // 10 distinct colors (extend/repeat if needed)
         const classColors = [
             '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
             '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
@@ -115,7 +174,6 @@
             colorScale.push([t, color]);
         }
 
-        // Custom legend for classes (using predicted labels)
         function buildClassLegend() {
             const legendDiv = document.getElementById("classLegend");
             let html = "<strong>Class colors (predicted):</strong><br>";
@@ -129,15 +187,9 @@
         }
         buildClassLegend();
 
-        // ----- Visual encodings -----
-
-        // Size: from uncertainty
+        // Visual encodings
         const sizeAll = uncertaintyNorm.map(u => 3 + 17 * (u || 0));  // 3..20
 
-        // Opacity: from diversity (note: Plotly scatter3d ignores per-point opacity)
-        const opacityAll = diversityNorm.map(d => Math.pow(d, 3)); //
-
-        // Symbol: novelty bins (3 bins: circle, square, x)
         const symbolAll = (function() {
             if (!noveltyNorm.length) return [];
             const finite = noveltyNorm.filter(v => Number.isFinite(v));
@@ -148,18 +200,16 @@
             return noveltyNorm.map(v => {
                 if (!Number.isFinite(v)) return "circle";
                 if (v <= q33) return "x";      // low novelty
-                if (v <= q66) return "square"; // medium novelty
-                return "circle";               // high novelty
+                if (v <= q66) return "square"; // medium
+                return "circle";               // high
             });
         })();
 
-        // ----- Helper to pick by indices -----
         function pick(arr, idxs) {
             return idxs.map(i => arr[i]);
         }
 
-        // Current visibility mask (respecting "hide labeled")
-        function getVisibleIndices(hideLabeled) {
+        function getBaseVisibleIndices(hideLabeled) {
             const idxs = [];
             for (let i = 0; i < embeddings.length; i++) {
                 if (hideLabeled && isLabeled[i]) continue;
@@ -168,14 +218,18 @@
             return idxs;
         }
 
-        const hideCheckbox = document.getElementById("hideLabeledCheckbox");
-        const kInput = document.getElementById("kInput");
-        const updateKBtn = document.getElementById("updateKBtn");
+        const hideCheckbox   = document.getElementById("hideLabeledCheckbox");
+        const kInput         = document.getElementById("kInput");
+        const updateKBtn     = document.getElementById("updateKBtn");
+        const subsetSelect   = document.getElementById("subsetSelect");
+        const highUncCheckbox = document.getElementById("highUncCheckbox");
+        const highDivCheckbox = document.getElementById("highDivCheckbox");
+        const highNovCheckbox = document.getElementById("highNovCheckbox");
 
-        function computeHotspotIndices(k, values, visibleIdxs) {
+        function computeHotspotIndices(k, values, baseVisibleIdxs) {
             const candidates = [];
-            for (let v = 0; v < visibleIdxs.length; v++) {
-                const i = visibleIdxs[v];
+            for (let v = 0; v < baseVisibleIdxs.length; v++) {
+                const i = baseVisibleIdxs[v];
                 const val = values[i];
                 if (!Number.isFinite(val)) continue;
                 candidates.push({i, val});
@@ -185,105 +239,144 @@
             return candidates.slice(0, kk).map(o => o.i);
         }
 
-        function makeData(hideLabeledFlag, k) {
-            const visibleIdxs = getVisibleIndices(hideLabeledFlag);
+        function makeData(hideLabeledFlag, k, subsetMode, filters) {
+            const baseVisibleIdxs = getBaseVisibleIndices(hideLabeledFlag);
 
-            // Hotspots in global index space
-            const covIdxGlobal = computeHotspotIndices(k, coverageNorm, visibleIdxs);
-            const denIdxGlobal = computeHotspotIndices(k, densityNorm, visibleIdxs);
-
+            // hotspots based on base set
+            const covIdxGlobal = computeHotspotIndices(k, coverageNorm, baseVisibleIdxs);
+            const denIdxGlobal = computeHotspotIndices(k, densityNorm, baseVisibleIdxs);
             const covSet = new Set(covIdxGlobal);
             const denSet = new Set(denIdxGlobal);
 
-            // Build per-visible point border style
-            const lineColors = [];
-            const lineWidths = [];
-            visibleIdxs.forEach(i => {
-                const inCov = covSet.has(i);
-                const inDen = denSet.has(i);
-                if (inCov && inDen) {
-                    lineColors.push('purple');
-                    lineWidths.push(4);
-                } else if (inCov) {
-                    lineColors.push('red');
-                    lineWidths.push(3);
-                } else if (inDen) {
-                    lineColors.push('black');
-                    lineWidths.push(2);
-                } else {
-                    lineColors.push('rgba(0,0,0,0)');
-                    lineWidths.push(0);
+            // subset by hotspots (class coverage / density)
+            let visibleIdxs;
+            if (subsetMode === "coverage") {
+                visibleIdxs = baseVisibleIdxs.filter(i => covSet.has(i));
+            } else if (subsetMode === "density") {
+                visibleIdxs = baseVisibleIdxs.filter(i => denSet.has(i));
+            } else if (subsetMode === "both") {
+                visibleIdxs = baseVisibleIdxs.filter(i => covSet.has(i) && denSet.has(i));
+            } else {
+                visibleIdxs = baseVisibleIdxs.slice(); // all
+            }
+
+            // additional filters based on cues
+            if (filters.onlyHighUnc && Number.isFinite(UNC_HIGH)) {
+                visibleIdxs = visibleIdxs.filter(i =>
+                    Number.isFinite(uncertaintyNorm[i]) && uncertaintyNorm[i] >= UNC_HIGH
+                );
+            }
+            if (filters.onlyHighDiv && Number.isFinite(DIV_HIGH)) {
+                visibleIdxs = visibleIdxs.filter(i =>
+                    Number.isFinite(diversityNorm[i]) && diversityNorm[i] >= DIV_HIGH
+                );
+            }
+            if (filters.onlyHighNov && Number.isFinite(NOV_HIGH)) {
+                // "circle only" = high novelty
+                visibleIdxs = visibleIdxs.filter(i =>
+                    Number.isFinite(noveltyNorm[i]) && noveltyNorm[i] >= NOV_HIGH
+                );
+            }
+
+            const traces = [];
+            const classLabels = Object.keys(classToIndex);
+
+            for (const cls of classLabels) {
+                const clsIdx = classToIndex[cls];
+
+                for (let bin = 0; bin < 3; bin++) {
+                    const idxsThis = visibleIdxs.filter(i =>
+                        predictedLabels[i] === cls && diversityBins[i] === bin
+                    );
+                    if (!idxsThis.length) continue;
+
+                    const lineColors = [];
+                    const lineWidths = [];
+
+                    idxsThis.forEach(i => {
+                        const inCov = covSet.has(i);
+                        const inDen = denSet.has(i);
+                        if (inCov && inDen) {
+                            lineColors.push('purple');
+                            lineWidths.push(4);
+                        } else if (inCov) {
+                            lineColors.push('red');
+                            lineWidths.push(3);
+                        } else if (inDen) {
+                            lineColors.push('black');
+                            lineWidths.push(2);
+                        } else {
+                            lineColors.push('rgba(0,0,0,0)');
+                            lineWidths.push(0);
+                        }
+                    });
+
+                    traces.push({
+                        name: `${cls} (div bin ${bin})`,
+                        x: pick(xAll, idxsThis),
+                        y: pick(yAll, idxsThis),
+                        z: pick(zAll, idxsThis),
+                        mode: 'markers',
+                        type: 'scatter3d',
+                        text: pick(hoverTextsAll, idxsThis),
+                        hoverinfo: 'text',
+                        marker: {
+                            size: pick(sizeAll, idxsThis),
+                            color: pick(colorIndexAll, idxsThis),  // numeric -> colorscale
+                            colorscale: colorScale,
+                            cmin: 0,
+                            cmax: nClasses - 1,
+                            opacity: opacityPerBin[bin],
+                            symbol: pick(symbolAll, idxsThis),
+                            line: {
+                                color: lineColors,
+                                width: lineWidths
+                            },
+                            colorbar: {
+                                title: 'Predicted class index',
+                                thickness: 15
+                            }
+                        },
+                        showscale: (clsIdx === 0 && bin === 0),
+                        showlegend: false
+                    });
                 }
-            });
+            }
 
-            const traceBase = {
-                name: 'Samples',
-                x: pick(xAll, visibleIdxs),
-                y: pick(yAll, visibleIdxs),
-                z: pick(zAll, visibleIdxs),
-                mode: 'markers',
-                type: 'scatter3d',
-                text: pick(hoverTextsAll, visibleIdxs),
-                hoverinfo: 'text',
-                marker: {
-                    size: pick(sizeAll, visibleIdxs),
-                    color: pick(colorIndexAll, visibleIdxs),
-                    colorscale: colorScale,
-                    cmin: 0,
-                    cmax: nClasses - 1,
-                    // NOTE: this array opacity won't actually work per-point in 3D,
-                    // you'll need the multi-trace workaround later.
-                    opacity: pick(opacityAll, visibleIdxs),
-                    symbol: pick(symbolAll, visibleIdxs),
-                    colorbar: {
-                        title: 'Predicted class index',
-                        thickness: 15
-                    },
-                    line: {
-                        color: lineColors,
-                        width: lineWidths
-                    }
-                },
-                showscale: true
-            };
-
-            return [traceBase];
+            return traces;
         }
-
-        // Initial K + hide flag
-        const initialK = parseInt(kInput.value) || 10;
-        let hideLabeledFlag = hideCheckbox.checked;
-
-        const data = makeData(hideLabeledFlag, initialK);
 
         const layout = {
             scene: {aspectmode: "cube"},
             legend: {orientation: "h"},
-            margin: {l: 0, r: 0, t: 0, b: 0}
+            margin: {l: 0, r: 0, t: 0, b: 0},
+            showlegend: false
         };
 
-        Plotly.newPlot('plot', data, layout).then(gd => {
-            function updatePlot() {
-                const kVal = parseInt(kInput.value) || 10;
-                hideLabeledFlag = hideCheckbox.checked;
-                const newData = makeData(hideLabeledFlag, kVal);
+        const gd = document.getElementById('plot');
 
-                Plotly.restyle(gd, {
-                    x: [newData[0].x],
-                    y: [newData[0].y],
-                    z: [newData[0].z],
-                    'marker.size': [newData[0].marker.size],
-                    'marker.color': [newData[0].marker.color],
-                    'marker.opacity': [newData[0].marker.opacity],
-                    'marker.symbol': [newData[0].marker.symbol],
-                    'marker.line.color': [newData[0].marker.line.color],
-                    'marker.line.width': [newData[0].marker.line.width]
-                }, [0]);
-            }
+        function updatePlot() {
+            const kVal       = parseInt(kInput.value) || 10;
+            const hideFlag   = hideCheckbox.checked;
+            const subsetMode = subsetSelect.value;
+            const filters = {
+                onlyHighUnc: highUncCheckbox.checked,
+                onlyHighDiv: highDivCheckbox.checked,
+                onlyHighNov: highNovCheckbox.checked
+            };
+            const newData = makeData(hideFlag, kVal, subsetMode, filters);
+            Plotly.react(gd, newData, layout);
+        }
 
-            hideCheckbox.addEventListener('change', updatePlot);
-            updateKBtn.addEventListener('click', updatePlot);
-        });
+        // Initial plot
+        updatePlot();
+
+        hideCheckbox.addEventListener('change', updatePlot);
+        updateKBtn.addEventListener('click', updatePlot);
+        subsetSelect.addEventListener('change', updatePlot);
+        highUncCheckbox.addEventListener('change', updatePlot);
+        highDivCheckbox.addEventListener('change', updatePlot);
+        highNovCheckbox.addEventListener('change', updatePlot);
     </script>
 </body>
 </html>
