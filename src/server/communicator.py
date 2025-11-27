@@ -25,12 +25,12 @@ class RestCommunicator:
         self.session.mount("http://", HTTPAdapter(max_retries=retry))
         self.session.mount("https://", HTTPAdapter(max_retries=retry))
 
-    def maybe_send(self, iteration, embeddings, actual_labels, predicted_labels, filenames, indices, is_labeled, cues):
+    def maybe_send(self, iteration, embeddings, actual_labels, predicted_labels, filenames, indices, is_labeled, cues, true_codes):
         """Send embeddings every `interval` iterations."""
         if iteration % self.interval == 0:
-            self.send_embeddings(iteration, embeddings, actual_labels, predicted_labels, filenames, indices, is_labeled, cues)
+            self.send_embeddings(iteration, embeddings, actual_labels, predicted_labels, filenames, indices, is_labeled, cues, true_codes)
 
-    def send_embeddings(self, iteration, embeddings, actual_labels, predicted_labels, filenames, indices, is_labeled, cues):
+    def send_embeddings(self, iteration, embeddings, actual_labels, predicted_labels, filenames, indices, is_labeled, cues, true_codes):
         payload = {
             "iteration": iteration,
             "embedding_shape": list(embeddings.shape),
@@ -41,6 +41,7 @@ class RestCommunicator:
             "indices": indices,
             "is_labeled": is_labeled.tolist(),
             "cues": {name: arr.tolist() for name, arr in cues.items()},
+            "true_codes": list(map(int, true_codes)),
         }
         try:
             r = self.session.post(self.embeddings_url, json=payload, timeout=self.timeout)

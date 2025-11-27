@@ -25,7 +25,7 @@ def get_annotation_requests():
     return {"error": "No annotation requests yet"}
 
 @router.post("/human_annotations")
-def receive_human_annotations(payload: HumanAnnotation):
+def post_human_annotations(payload: HumanAnnotation):
     if os.path.exists(HUMAN_ANNOTATIONS):
         with open(HUMAN_ANNOTATIONS, "r") as f:
             annotations = json.load(f)
@@ -33,12 +33,26 @@ def receive_human_annotations(payload: HumanAnnotation):
         annotations = {}
 
     updated = 0
+    user = payload.user or "anonymous"
+
     for filename, idx, label in zip(payload.filenames, payload.indices, payload.labels):
         key = str(int(idx))
         val = int(label)
+
+        prev = annotations.get(key)
+        # support old format (int) and new format (dict)
+        if isinstance(prev, dict):
+            prev_label = prev.get("label")
+        else:
+            prev_label = prev
+
         # only update if new or changed
-        if annotations.get(key) != val:
-            annotations[key] = val
+        if prev_label != val:
+            annotations[key] = {
+                "label": val,
+                "user": user,
+                "filename": filename,
+            }
             updated += 1
 
     if updated > 0:
@@ -54,10 +68,10 @@ def receive_human_annotations(payload: HumanAnnotation):
             pass
         log.info(f"Stored human annotations | updated={updated} | total={len(annotations)}")
     else:
-        # nothing new — keep it quiet
         log.debug("Human annotations POST contained no new labels.")
 
     return {"status": "ok", "updated": updated, "total": len(annotations)}
+
 
 @router.get("/classes")
 def get_class_map():

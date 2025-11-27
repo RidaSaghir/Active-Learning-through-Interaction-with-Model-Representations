@@ -1,5 +1,5 @@
 from pydantic import BaseModel, validator
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 class EmbeddingPayload(BaseModel):
     iteration: int
@@ -11,6 +11,7 @@ class EmbeddingPayload(BaseModel):
     indices: List[int]
     is_labeled: List[bool]
     cues: Dict[str, List[float]]
+    true_codes: List[int]
 
 class MetricsPayload(BaseModel):
     iteration: int
@@ -31,6 +32,7 @@ class HumanAnnotation(BaseModel):
     filenames: List[str]
     indices: List[int]
     labels: List[int]
+    user: Optional[str] = "anonymous"
 
     @validator("labels")
     def _len_match_labels(cls, v, values):

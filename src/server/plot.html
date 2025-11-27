@@ -177,6 +177,8 @@
         const filenames       = {{FILENAMES}};
         const cues            = {{CUES}};
         const isLabeledRaw    = {{ISLABELED}};
+        const datasetIndices    = {{INDICES}};
+        const trueCodes       = {{TRUE_CODES}};
 
         const isLabeled = isLabeledRaw.map(v => (v === true || v === "true" || v === 1));
 
@@ -423,7 +425,8 @@
                         type: 'scatter3d',
                         text: pick(hoverTextsAll, idxsThis),
                         hoverinfo: 'text',
-                        _indices: originalIndices,
+                        //_indices: originalIndices,
+                        customdata: originalIndices,
                         marker: {
                             size: pick(sizeAll, idxsThis),
                             color: pick(colorIndexAll, idxsThis),
@@ -504,21 +507,73 @@
             // Hover feedback: show currently hovered point
             gd.on('plotly_hover', evt => {
                 const pt = evt.points[0];
-                const trace = pt.data;
-                const localIdx = pt.pointIndex;
-                const globalIdx = trace._indices ? trace._indices[localIdx] : null;
-                if (globalIdx != null) {
-                    hoverInfoEl.innerHTML =
-                        `Selected: <strong>${filenames[globalIdx]}</strong>` +
-                        ` · Pred: ${predictedLabels[globalIdx]}` +
-                        ` · Unc: ${uncertainty[globalIdx]?.toFixed(2)}` +
-                        ` · Div: ${diversity[globalIdx]?.toFixed(2)}` +
-                        ` · Nov: ${novelty[globalIdx]?.toFixed(2)}`;
+                const globalIdx = pt.customdata;   // ⭐ comes from customdata
+                if (globalIdx == null) {
+                    hoverInfoEl.innerHTML = "";
+                    return;
                 }
+                hoverInfoEl.innerHTML =
+                    `Selected: <strong>${filenames[globalIdx]}</strong>` +
+                    ` · Pred: ${predictedLabels[globalIdx]}` +
+                    ` · Unc: ${uncertainty[globalIdx]?.toFixed(2)}` +
+                    ` · Div: ${diversity[globalIdx]?.toFixed(2)}` +
+                    ` · Nov: ${novelty[globalIdx]?.toFixed(2)}`;
             });
 
             gd.on('plotly_unhover', () => {
                 hoverInfoEl.innerHTML = "";
+            });
+
+            let lastUserName = null;
+            gd.on('plotly_click', evt => {
+                const pt = evt.points[0];
+                const globalIdx = pt.customdata;   // ⭐ directly the index into embeddings / filenames
+                console.log("CLICK", { pt, globalIdx });
+
+                if (globalIdx == null) {
+                    console.warn("No customdata/globalIdx for clicked point");
+                    return;
+                }
+
+                const dsIdx    = datasetIndices[globalIdx];  // dataset index (matches combined_df index)
+                const fn       = filenames[globalIdx];
+                const origStr  = actualLabels[globalIdx];
+                const predStr  = predictedLabels[globalIdx];
+                const trueCode = trueCodes[globalIdx];
+
+                console.log("ANNOT", { dsIdx, fn, origStr, predStr, trueCode });
+
+                if (!lastUserName) {
+                    const name = prompt("Annotator name:", "user1");
+                    if (!name) return;
+                    lastUserName = name;
+                }
+
+                fetch("/human_annotations", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({
+                        filenames: [fn],
+                        indices:   [dsIdx],
+                        labels:    [trueCode],
+                        user:      lastUserName
+                    })
+                })
+                .then(r => {
+                    console.log("POST status", r.status);
+                    return r.json();
+                })
+                .then(data => {
+                    console.log("Annotation stored:", data);
+                    hoverInfoEl.innerHTML =
+                        `Annotated: <strong>${fn}</strong>` +
+                        ` · true label=${origStr} (code=${trueCode})` +
+                        ` · user=${lastUserName}`;
+                })
+                .catch(err => {
+                    console.error("Failed to send annotation:", err);
+                    alert("Failed to send annotation. See console for details.");
+                });
             });
 
         }

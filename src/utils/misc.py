@@ -36,7 +36,13 @@ def load_annotations(path=HUMAN_ANNOTATIONS):
         return {}
     with open(path, "r") as f:
         data = json.load(f)
-    return {int(k): v for k, v in data.items()}
+    result = {}
+    for k, v in data.items():
+        if isinstance(v, dict):
+            result[int(k)] = int(v.get("label"))
+        else:
+            result[int(k)] = int(v)
+    return result
 
 def compute_umap(embeddings, n_components: int = 3, random_state = 42):
 

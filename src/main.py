@@ -18,7 +18,7 @@ from utils.misc import evaluate_model, load_annotations
 from utils.logging_utils import setup_logging, get_logger
 from utils.curve import append_curve_row, save_curve_png
 from config import (CHECKPOINT, BATCH_SIZE, HELD_OUT_FOLD, EPOCHS_BEFORE_QUERY, NUM_ANNOTATION_SUGGESTIONS,
-                    INITIAL_LABELS_PER_CLASS_COUNT, ACCURACY_TARGET,)
+                    INITIAL_LABELS_PER_CLASS_COUNT, ACCURACY_TARGET, CSV_FILENAME, PNG_FILENAME)
 
 def start_api_in_thread(host="0.0.0.0", port=8000):
     app = create_app()
@@ -105,8 +105,8 @@ def run_trainer():
         # 3) Evaluate + send + checkpoint
         acc = evaluate_model(model, test_dataset)
         log.info(f"Epoch end | iter={total_iterations} | test_acc={acc:.4f} | last_loss={last_loss:.4f}")
-        curve_csv = os.path.join("logs", f"learning_curve_{INITIAL_LABELS_PER_CLASS_COUNT*10}_{NUM_ANNOTATION_SUGGESTIONS}.csv")
-        curve_png = os.path.join("logs", f"learning_curve_{INITIAL_LABELS_PER_CLASS_COUNT*10}_{NUM_ANNOTATION_SUGGESTIONS}.png")
+        curve_csv = os.path.join("logs", f"{CSV_FILENAME}.csv")
+        curve_png = os.path.join("logs", f"{PNG_FILENAME}.png")
         # how many human labels are in play right now
         human_labels_so_far = len(load_annotations())
         total_labeled_now = len(labeled_manager.labeled_indices)
@@ -134,7 +134,7 @@ def run_trainer():
         while True:
             time.sleep(1.0)
             curr = load_annotations()
-            if len(curr) > last_seen:  # new labels arrived
+            if len(curr) >= last_seen + 10:  # new labels arrived
                 last_seen = len(curr)
                 log.info(f"Detected new labels | total={last_seen} | resuming training")
                 break

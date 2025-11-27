@@ -7,6 +7,7 @@ latest_filenames = None
 indices = None
 is_labeled = None
 cues = None
+true_codes = None
 
 latest_metrics = {}
 suggested_annotation_filenames = []

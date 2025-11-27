@@ -55,13 +55,11 @@ class ActiveLearningLoop:
                 is_labeled:    np.bool_ [N]     True for labeled pool
             """
         self.log.info("Gather full dataset view (for frontend)")
-        embeddings, probs = [], []
-        predicted_labels, actual_labels = [], []
-        filenames, indices, is_labeled = [], [], []
+        embeddings, predicted_labels, actual_labels, filenames, indices = [], [], [], [], []
+        probs, is_labeled, true_codes = [], [], []
 
         self.model.eval()
         with torch.no_grad():
-            # Labeled
             for embedding_tensor, label_tensor, original_label, filename, index in manager.iter_labeled():
                 logits, z = self.model(embedding_tensor.unsqueeze(0))
                 p = torch.softmax(logits, dim=1).squeeze(0)
@@ -74,6 +72,7 @@ class ActiveLearningLoop:
                 filenames.append(filename)
                 indices.append(int(index))
                 is_labeled.append(True)
+                true_codes.append(int(label_tensor.item()))
 
             # Unlabeled
             for embedding_tensor, label_tensor, original_label, filename, index in manager.iter_unlabeled():
@@ -89,6 +88,7 @@ class ActiveLearningLoop:
                 filenames.append(filename)
                 indices.append(int(index))
                 is_labeled.append(False)
+                true_codes.append(int(label_tensor.item()))
 
         # >>> make it an array here (and handle empty)
         emb_np = np.empty((0, self.model.classifier.in_features), np.float32) if len(embeddings) == 0 \
@@ -98,7 +98,7 @@ class ActiveLearningLoop:
         is_labeled = np.array(is_labeled, dtype=np.bool_)
 
         self.log.info(f"Gathered view | total={len(filenames)} | dims={emb_np.shape[1]}")
-        return emb_np, actual_labels, predicted_labels, filenames, indices, prob_np, is_labeled
+        return emb_np, actual_labels, predicted_labels, filenames, indices, prob_np, is_labeled, true_codes
 
     def _apply_new_annotations_and_train(self, device=None, epochs=1, replay_fraction=0.0):
         """Load human_annotations.json, take only NEW items, train on them."""
@@ -146,7 +146,7 @@ class ActiveLearningLoop:
             train_loss, train_accuracy = self.model.train_step(x, y)
             self.log.info(f"step={global_iteration} | batch={len(y)} | loss={train_loss:.4f} | acc={train_accuracy:.3f}")
             self.communicator.send_metrics(global_iteration, train_accuracy, train_loss)
-            emb_np, actual_labels, predicted_labels, filenames, indices, prob_np, is_labeled = self.gather_full_dataset_view(self.manager)
+            emb_np, actual_labels, predicted_labels, filenames, indices, prob_np, is_labeled, true_codes = self.gather_full_dataset_view(self.manager)
             cues = compute_cues_from_view(
                 emb_np=emb_np,
                 prob_np=prob_np,
@@ -157,7 +157,7 @@ class ActiveLearningLoop:
 
             self.communicator.maybe_send(iteration= global_iteration, embeddings=emb_np, actual_labels=actual_labels,
                                              predicted_labels=predicted_labels, filenames=filenames, indices=indices,
-                                             is_labeled=is_labeled, cues=cues)
+                                             is_labeled=is_labeled, cues=cues, true_codes=true_codes)
 
             global_iteration += 1
 

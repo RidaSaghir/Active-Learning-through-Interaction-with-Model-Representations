@@ -19,6 +19,7 @@ def post_latest_embeddings(payload: EmbeddingPayload):
     state.indices = payload.indices
     state.is_labeled = payload.is_labeled
     state.cues = payload.cues
+    state.true_codes = payload.true_codes
     log.info(
         f"Received embeddings | iter={payload.iteration} | "
         f"shape={tuple(payload.embedding_shape)} | "

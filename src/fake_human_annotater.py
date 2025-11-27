@@ -10,14 +10,7 @@ HUMAN_POST   = f"{API}/human_annotations"
 CSV_PATH     = os.path.join(DATA_DIR, "UrbanSound8K.csv")
 
 def build_index_to_code():
-    """
-    Reproduce the SAME index mapping your loader uses:
-    1) make class codes on FULL df
-    2) split train/test by held out fold
-    3) sample PER_CLASS_COUNT per class for seed labeled
-    4) concat labeled + unlabeled to form combined_df
-    Return: dict[index_in_combined_df -> class_code]
-    """
+
     df = pd.read_csv(CSV_PATH)
     # Step 1: build codes BEFORE splitting (matches your loader)
     df["class_code"] = df["class"].astype("category").cat.codes
@@ -59,6 +52,7 @@ def post_human_annotations(indices, filenames, labels):
         "filenames": filenames,
         "indices":   indices,
         "labels":    labels,   # MUST be class codes (ints)
+        "user": "baseline_uncertainty",
     }
     r = requests.post(HUMAN_POST, json=payload, timeout=3)
     r.raise_for_status()

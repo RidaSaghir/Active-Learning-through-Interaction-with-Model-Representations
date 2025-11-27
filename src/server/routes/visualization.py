@@ -43,6 +43,8 @@ def plot_embeddings():
         .replace("{{CUES}}", json.dumps(cues))
         .replace("{{FILENAMES}}", json.dumps(filenames))
         .replace("{{ISLABELED}}", json.dumps(is_labeled))
+        .replace("{{TRUE_CODES}}", json.dumps(state.true_codes))
+        .replace("{{INDICES}}", json.dumps(state.indices))
     )
 
     return HTMLResponse(content=html)
