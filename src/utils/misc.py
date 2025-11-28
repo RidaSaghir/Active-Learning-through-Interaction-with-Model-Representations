@@ -3,6 +3,7 @@ import umap
 import json
 import os
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 from sklearn.metrics import accuracy_score
 from config import HUMAN_ANNOTATIONS
 
@@ -11,17 +12,23 @@ def evaluate_model(model, dataset, batch_size=32):
     dataloader = DataLoader(dataset, batch_size=batch_size)
     all_preds = []
     all_labels = []
+    total_loss = 0.0
+    total_count = 0
 
     with torch.no_grad():
         for batch in dataloader:
             x, y, *rest = batch  # x: embeddings, y: labels
             logits, _ = model(x)
             preds = torch.argmax(logits, dim=1)
+            loss = F.cross_entropy(logits, y, reduction='sum')
+            total_loss += loss.item()
+            total_count += y.size(0)
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(y.cpu().numpy())
 
     acc = accuracy_score(all_labels, all_preds)
-    return acc
+    avg_loss = total_loss / total_count if total_count > 0 else 0.0
+    return acc, avg_loss
 
 def diff_annotations(current: dict, seen: dict):
     """Return only new or changed annotations."""

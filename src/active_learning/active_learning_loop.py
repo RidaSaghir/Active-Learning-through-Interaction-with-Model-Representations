@@ -145,7 +145,7 @@ class ActiveLearningLoop:
             x, y, _, filenames, idx = self.manager.next_batch()
             train_loss, train_accuracy = self.model.train_step(x, y)
             self.log.info(f"step={global_iteration} | batch={len(y)} | loss={train_loss:.4f} | acc={train_accuracy:.3f}")
-            self.communicator.send_metrics(global_iteration, train_accuracy, train_loss)
+            #self.communicator.send_metrics(global_iteration, train_accuracy, train_loss)
             emb_np, actual_labels, predicted_labels, filenames, indices, prob_np, is_labeled, true_codes = self.gather_full_dataset_view(self.manager)
             cues = compute_cues_from_view(
                 emb_np=emb_np,
