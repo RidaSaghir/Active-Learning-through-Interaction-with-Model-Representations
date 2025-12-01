@@ -17,6 +17,14 @@ class MetricsPayload(BaseModel):
     iteration: int
     accuracy: float
     loss: float
+    accuracy_target: Optional[float] = None
+    total_labeled: Optional[int] = None
+    human_labeled: Optional[int] = None
+    per_class_accuracy: Optional[Dict[str, float]] = None
+    labeled_counts: Optional[Dict[str, int]] = None
+    phase: Optional[str] = None
+
+
 
 class AnnotationRequest(BaseModel):
     filenames: List[str]

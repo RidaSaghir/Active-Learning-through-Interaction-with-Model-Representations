@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>3D Embeddings Plot</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body style="background:#f4f5fa; margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;">
+    <div style="
+        max-width: 1200px;
+        margin: 1.5rem auto;
+        padding: 1.5rem 1.75rem 1.75rem;
+        background:#ffffff;
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    ">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+            <div>
+                <h2 style="margin:0 0 0.25rem 0; font-size:1.4rem;">
+                    Human-guided active learning
+                </h2>
+                <div style="font-size:0.9rem; color:#555;">
+                    <strong>Iteration {{ITER}}</strong> · Humans browse informative samples,
+                    not just whatever the model throws at them.
+                </div>
+            </div>
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:#888; text-align:right;">
+                Human-in-the-loop Active Learning · Demo
+            </div>
+        </div>
+
+        <!-- STEP BAR -->
+        <div style="margin-top:1rem; display:flex; flex-wrap:wrap; gap:0.75rem; font-size:0.78rem; color:#444;">
+            <div style="padding:0.35rem 0.6rem; border-radius:999px; background:#f1fbf4;">
+                <strong>Step 1:</strong> Glance through the candidates in 3D space.
+            </div>
+            <div style="padding:0.35rem 0.6rem; border-radius:999px; background:#f1f3ff;">
+                <strong>Step 2:</strong> Choose an informative sample by taking help of <em>cues</em>
+                (uncertainty, diversity, novelty, coverage, density).
+            </div>
+            <div style="padding:0.35rem 0.6rem; border-radius:999px; background:#fff7e6;">
+                <strong>Step 3:</strong> Annotate and steer the model’s next move.
+            </div>
+        </div>
+
+        <!-- CONTROL BAR -->
+        <div style="
+            margin-top:1rem;
+            padding:0.6rem 0.8rem;
+            border-radius:10px;
+            background:#f8f9ff;
+            display:flex;
+            flex-wrap:wrap;
+            align-items:flex-end;
+            gap:1rem;
+            font-size:0.85rem;
+        ">
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Samples
+                </div>
+                <label>
+                    <input type="checkbox" id="hideLabeledCheckbox" />
+                    Hide labeled
+                </label>
+            </div>
+
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Hotspot budget
+                </div>
+                <label>
+                    K:
+                    <input type="number" id="kInput" value="10" min="1" max="500" style="width:60px;" />
+                </label>
+            </div>
+
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Focus
+                </div>
+                <select id="subsetSelect">
+                    <option value="all">All visible</option>
+                    <option value="coverage">Coverage hotspots (K)</option>
+                    <option value="density">Density hotspots (K)</option>
+                    <option value="both">Coverage ∩ density (K)</option>
+                </select>
+            </div>
+
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Human attention filters
+                </div>
+                <label style="margin-right:0.6rem;">
+                    <input type="checkbox" id="highUncCheckbox" />
+                    High uncertainty
+                </label>
+                <label style="margin-right:0.6rem;">
+                    <input type="checkbox" id="highDivCheckbox" />
+                    High diversity
+                </label>
+                <label>
+                    <input type="checkbox" id="highNovCheckbox" />
+                    High novelty (circles)
+                </label>
+            </div>
+
+            <div>
+                <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
+                    Camera
+                </div>
+                <label>
+                    <input type="checkbox" id="autoRotateCheckbox" checked />
+                    Auto rotate
+                </label>
+            </div>
+
+            <div style="margin-left:auto;">
+                <button id="updateKBtn" style="
+                    padding:0.35rem 0.9rem;
+                    border-radius:999px;
+                    border:none;
+                    background:#4f46e5;
+                    color:white;
+                    font-size:0.8rem;
+                    cursor:pointer;
+                ">
+                    Update view
+                </button>
+            </div>
+        </div>
+
+        <!-- PRESETS -->
+        <div style="margin-top:0.6rem; font-size:0.8rem; color:#444;">
+            Presets (for demo):
+            <button type="button" id="preset1" style="margin-left:0.3rem; padding:0.25rem 0.7rem; border-radius:999px; border:1px solid #d0d3ff; background:#fff;">
+                Uncertain coverage
+            </button>
+            <button type="button" id="preset2" style="margin-left:0.3rem; padding:0.25rem 0.7rem; border-radius:999px; border:1px solid #d0f0d8; background:#fff;">
+                Diverse & novel
+            </button>
+            <button type="button" id="preset3" style="margin-left:0.3rem; padding:0.25rem 0.7rem; border-radius:999px; border:1px solid #ffe1a6; background:#fff;">
+                Dense regions
+            </button>
+        </div>
+
+        <!-- PLOT -->
+        <div id="plot" style="width: 100%; height: 600px; margin-top:1rem;"></div>
+
+        <!-- HOVER INFO + LEGEND + EXPLANATION -->
+        <div id="hoverInfo" style="margin-top:0.5rem; font-size:0.8rem; color:#333; min-height:1.2em;"></div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:2rem; margin-top:0.75rem;">
+            <div id="classLegend" style="font-size: 0.85rem;"></div>
+
+            <div style="font-size: 0.8rem; max-width: 420px; color:#444;">
+                <strong>Visual encodings (how humans read the model):</strong><br>
+                • <strong>Color</strong>: predicted class (see legend).<br>
+                • <strong>Size</strong>: larger markers = higher <em>uncertainty</em> &rarr; the model is unsure.<br>
+                • <strong>Opacity</strong>: more opaque = more <em>diverse</em> &rarr; different from what’s already labeled.<br>
+                • <strong>Shape</strong> from <em>novelty</em>: ◯ high, □ medium, ✕ low.<br>
+                • <strong>Red borders</strong>: class coverage pressure (K highest).<br>
+                • <strong>Black borders</strong>: local density pressure (K highest).<br>
+                • <strong>Purple borders</strong>: where coverage and density both demand attention.<br>
+                <br>
+                Instead of labeling random suggestions, the annotator can
+                <em>choose</em> which trade-offs to prioritize and shape the model’s learning path.
+            </div>
+        </div>
+    </div>
+
+    <!-- METRICS PANEL -->
+    <div id="metricsPanel" style="margin-top:1rem; font-size:0.85rem;">
+        <div id="globalMetrics" style="
+            padding:0.75rem 1rem;
+            border-radius:10px;
+            background:#f9fafb;
+            border:1px solid #e5e7eb;
+            margin-bottom:0.75rem;
+        ">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280;">
+                        Model performance
+                    </div>
+                    <div id="globalAccText" style="font-size:1rem; font-weight:600; margin-top:0.15rem;">
+                        Accuracy: –
+                    </div>
+                    <div id="globalAccSub" style="font-size:0.8rem; color:#6b7280;">
+                        Waiting for metrics…
+                    </div>
+                </div>
+                <div style="flex:0 0 220px; margin-left:1.5rem;">
+                    <div style="font-size:0.75rem; color:#6b7280; margin-bottom:0.15rem;">
+                        Progress towards target
+                    </div>
+                    <div style="width:100%; height:10px; border-radius:999px; background:#e5e7eb; overflow:hidden;">
+                        <div id="globalAccBar" style="
+                            height:100%;
+                            width:0%;
+                            background:linear-gradient(90deg,#4ade80,#22c55e);
+                            transition:width 0.4s ease;
+                        "></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="perClassMetrics" style="
+            padding:0.75rem 1rem;
+            border-radius:10px;
+            background:#f9fafb;
+            border:1px solid #e5e7eb;
+        ">
+            <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin-bottom:0.4rem;">
+                Per-class accuracy & discoveries
+            </div>
+            <div id="perClassList" style="font-size:0.8rem;"></div>
+        </div>
+    </div>
+
+    <!-- Inject data for JS -->
+    <script>
+      window.IMLVR_DATA = {
+        embeddings: {{EMBEDDINGS}},
+        actualLabels: {{LABELS}},
+        predictedLabels: {{PRED}},
+        filenames: {{FILENAMES}},
+        cues: {{CUES}},
+        isLabeledRaw: {{ISLABELED}},
+        datasetIndices: {{INDICES}},
+        trueCodes: {{TRUE_CODES}}
+      };
+    </script>
+    <!-- External JS files -->
+    <script src="static/embeddings.js"></script>
+    <script src="static/metrics.js"></script>
+</body>
+</html>

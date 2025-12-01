@@ -14,11 +14,11 @@ from active_learning.active_learning_loop import UncertaintySampler, ActiveLearn
 from server.communicator import RestCommunicator
 from server.app import create_app
 from server import state
-from utils.misc import evaluate_model, load_annotations
+from utils.misc import load_annotations, evaluate_model_with_per_class
 from utils.logging_utils import setup_logging, get_logger
 from utils.curve import append_curve_row, save_curve_png
 from config import (CHECKPOINT, BATCH_SIZE, HELD_OUT_FOLD, EPOCHS_BEFORE_QUERY, NUM_ANNOTATION_SUGGESTIONS,
-                    INITIAL_LABELS_PER_CLASS_COUNT, ACCURACY_TARGET, CSV_FILENAME, PNG_FILENAME)
+                    INITIAL_LABELS_PER_CLASS_COUNT, ACCURACY_TARGET, CSV_FILENAME, PNG_FILENAME, LABELS_PER_ROUND)
 
 def start_api_in_thread(host="0.0.0.0", port=8000):
     app = create_app()
@@ -93,6 +93,7 @@ def run_trainer():
         # 1) Incorporate any NEW labels once, before training this cycle
         added = loop._apply_new_annotations_and_train(epochs=1, replay_fraction=0.0)
         if added:
+            human_labels_so_far = len(load_annotations())
             log.info(f"Applied new human annotations | +{added}")
 
         # 2) Train for X full epochs, then query once
@@ -102,23 +103,45 @@ def run_trainer():
             start_iteration=total_iterations,
             num_iters=num_iterations  # <-- drives X full passes
         )
+
         # 3) Evaluate + send + checkpoint
-        acc = evaluate_model(model, test_dataset)
-        log.info(f"Epoch end | iter={total_iterations} | test_acc={acc:.4f} | last_loss={last_loss:.4f}")
+        acc_global, avg_loss, per_class_acc, per_class_support = evaluate_model_with_per_class(
+            model, test_dataset, class_code_to_label=class_code_to_label
+        )
+
+        log.info(
+            f"Epoch end | iter={total_iterations} | "
+            f"test_acc={acc_global:.4f} | test_loss={avg_loss:.4f}"
+        )
+
         curve_csv = os.path.join("logs", f"{CSV_FILENAME}.csv")
         curve_png = os.path.join("logs", f"{PNG_FILENAME}.png")
+
         # how many human labels are in play right now
         human_labels_so_far = len(load_annotations())
         total_labeled_now = len(labeled_manager.labeled_indices)
-        append_curve_row(curve_csv,
-                         iteration=total_iterations,
-                         total_labeled=total_labeled_now,
-                         human_labeled=human_labels_so_far,
-                         acc=acc,
-                         loss=last_loss)
+        labeled_counts = labeled_manager.get_labeled_counts_per_class(class_code_to_label)
+
+        append_curve_row(
+            curve_csv,
+            iteration=total_iterations,
+            total_labeled=total_labeled_now,
+            human_labeled=human_labels_so_far,
+            acc=acc_global,
+            loss=avg_loss
+        )
         save_curve_png(curve_csv, curve_png, init_labels=INITIAL_LABELS_PER_CLASS_COUNT, human_annotations=NUM_ANNOTATION_SUGGESTIONS)
         log.info(f"Sent metrics to {curve_csv}")
-        communicator.send_metrics(total_iterations, acc, last_loss)
+        communicator.send_metrics(
+            iteration=total_iterations,
+            accuracy=acc_global,
+            loss=avg_loss,
+            accuracy_target=ACCURACY_TARGET,
+            total_labeled=total_labeled_now,
+            human_labeled=human_labels_so_far,
+            per_class_accuracy=per_class_acc,
+            labeled_counts=labeled_counts,
+        )
         torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': model.optimizer.state_dict(),
@@ -128,15 +151,25 @@ def run_trainer():
         }, CHECKPOINT)
         log.info("Checkpoint saved")
 
-        if acc >= ACCURACY_TARGET: sys.exit(0)
+        if acc_global >= ACCURACY_TARGET: sys.exit(0)
 
         # 4) Wait for more labels
         while True:
             time.sleep(1.0)
             curr = load_annotations()
-            if len(curr) >= last_seen + 10:  # new labels arrived
+            if len(curr) >= last_seen + LABELS_PER_ROUND:  # new labels arrived
                 last_seen = len(curr)
-                log.info(f"Detected new labels | total={last_seen} | resuming training")
+                log.info(
+                    f"Detected new labels | total={last_seen} "
+                    f"| +{LABELS_PER_ROUND} since last round -> retrain"
+                )
+                communicator.send_metrics(
+                    iteration=total_iterations,
+                    accuracy=0.0,
+                    loss=0.0,
+                    phase="retrain_start",
+                    human_labeled=last_seen,
+                )
                 break
 
 if __name__ == "__main__":

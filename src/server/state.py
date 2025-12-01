@@ -8,6 +8,6 @@ indices = None
 is_labeled = None
 cues = None
 true_codes = None
-
-latest_metrics = {}
+metrics_history = []
+latest_metrics = None
 suggested_annotation_filenames = []

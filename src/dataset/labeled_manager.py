@@ -1,6 +1,5 @@
 from torch.utils.data import DataLoader, Subset
-import torch
-import numpy as np
+from collections import Counter
 
 class LabeledSetManager:
     def __init__(self, full_dataset, labeled_indices, unlabeled_indices, batch_size=16, num_workers=4):
@@ -75,3 +74,13 @@ class LabeledSetManager:
             batch_size=batch_size or self.batch_size,
             shuffle=shuffle
         )
+
+    def get_labeled_counts_per_class(self, class_code_to_label=None):
+        """Return dict[class_label -> count_in_labeled_pool]."""
+        labels = [int(self.dataset.labels[i]) for i in self.labeled_indices]
+        counts = Counter(labels)
+        result = {}
+        for code, cnt in counts.items():
+            label = class_code_to_label[code] if class_code_to_label is not None else str(code)
+            result[label] = int(cnt)
+        return result

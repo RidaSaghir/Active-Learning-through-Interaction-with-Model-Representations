@@ -9,7 +9,7 @@ class RestCommunicator:
     def __init__(self, url=BASE_URL, interval=BROADCAST_INTERVAL, timeout=3.0):
         self.log = get_logger("communicator")
         self.url = url.rstrip("/")
-        self.embeddings_url = f"{url}/latest_embeddings"
+        self.embeddings_url = f"{self.url}/latest_embeddings"
         self.annotation_url = f"{url}/annotate"
         self.metrics_url = f"{url}/metrics"
         self.interval = interval
@@ -50,22 +50,6 @@ class RestCommunicator:
         except requests.RequestException as e:
             self.log.warning(f"Failed to send embeddings @iter={iteration}: {e}")
 
-    def send_3d(self, iteration, embeddings_3d, actual_labels, predicted_labels, filenames):
-        payload = {
-            "iteration": iteration,
-            "embeddings": embeddings_3d.tolist(),
-            "actual_labels": actual_labels,
-            "predicted_labels": predicted_labels,
-            "filenames": filenames
-        }
-        try:
-            response = requests.post(self.embeddings_url_3d, json=payload)
-            response.raise_for_status()
-            print(f"[RestCommunicator] Sent 3D embeddings at iteration {iteration}")
-        except requests.RequestException as e:
-            print(f"[RestCommunicator] Error sending data: {e}")
-
-
     def send_annotation_request(self, filenames, indices):
         payload = {"filenames": filenames, "indices": indices}
         try:
@@ -75,12 +59,38 @@ class RestCommunicator:
         except requests.RequestException as e:
             self.log.warning(f"Failed to send annotation request: {e}")
 
-    def send_metrics(self, iteration, accuracy, loss):
-        payload = {"iteration": iteration, "accuracy": accuracy, "loss": loss}
+    def send_metrics(
+        self,
+        iteration,
+        accuracy,
+        loss,
+        accuracy_target=None,
+        total_labeled=None,
+        human_labeled=None,
+        per_class_accuracy=None,
+        labeled_counts=None,
+        phase=None,
+    ):
+        payload = {
+            "iteration": iteration,
+            "accuracy": accuracy,
+            "loss": loss,
+            "accuracy_target": accuracy_target,
+            "total_labeled": total_labeled,
+            "human_labeled": human_labeled,
+            "per_class_accuracy": per_class_accuracy or {},
+            "labeled_counts": labeled_counts or {},
+            "phase": phase,
+        }
         try:
             r = self.session.post(self.metrics_url, json=payload, timeout=self.timeout)
             r.raise_for_status()
-            self.log.info(f"Sent metrics | iter={iteration} | acc={accuracy:.4f} | loss={loss:.4f}")
+            self.log.info(
+                f"Sent metrics | iter={iteration} "
+                f"| acc={accuracy:.4f} | loss={loss:.4f} | human_labels={human_labeled}"
+            )
         except requests.RequestException as e:
             self.log.warning(f"Failed to send metrics @iter={iteration}: {e}")
+
+
 

@@ -24,7 +24,7 @@ def plot_embeddings():
     )
 
     # adjust this path if needed
-    template_path = Path(__file__).resolve().parent.parent / "plot.html"
+    template_path = Path(__file__).resolve().parent / "ui.html"
     html_template = template_path.read_text(encoding="utf-8")
 
     embeddings = state.latest_embeddings.tolist()
@@ -33,6 +33,8 @@ def plot_embeddings():
     filenames = state.latest_filenames
     cues = state.cues or {}
     is_labeled = state.is_labeled or []
+    indices = state.indices
+    true_codes = state.true_codes
 
     html = (
         html_template

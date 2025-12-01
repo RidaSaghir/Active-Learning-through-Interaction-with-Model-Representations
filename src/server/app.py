@@ -1,8 +1,15 @@
 from fastapi import FastAPI
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 from .routes import embeddings, metrics, annotations, visualization
+
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "routes" / "static"
 
 def create_app() -> FastAPI:
     app = FastAPI()
+    app.mount("/static", StaticFiles(directory=(STATIC_DIR)), name="static")
     app.include_router(embeddings.router)
     app.include_router(metrics.router)
     app.include_router(annotations.router)

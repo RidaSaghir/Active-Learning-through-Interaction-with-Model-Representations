@@ -2,6 +2,7 @@ import torch
 import umap
 import json
 import os
+import numpy as np
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from sklearn.metrics import accuracy_score
@@ -29,6 +30,53 @@ def evaluate_model(model, dataset, batch_size=32):
     acc = accuracy_score(all_labels, all_preds)
     avg_loss = total_loss / total_count if total_count > 0 else 0.0
     return acc, avg_loss
+
+def evaluate_model_with_per_class(model, dataset, batch_size=32, class_code_to_label=None):
+    """
+    Returns:
+      acc_global: float
+      per_class_acc: dict[class_label -> float]
+      per_class_support: dict[class_label -> int]  (how many test samples)
+    """
+    model.eval()
+    dataloader = DataLoader(dataset, batch_size=batch_size)
+    all_preds = []
+    all_labels = []
+    total_loss = 0.0
+    total_count = 0
+
+    with torch.no_grad():
+        for batch in dataloader:
+            x, y, *rest = batch  # x: embeddings, y: labels
+            logits, _ = model(x)
+            preds = torch.argmax(logits, dim=1)
+            loss = F.cross_entropy(logits, y, reduction='sum')
+            total_loss += loss.item()
+            total_count += y.size(0)
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(y.cpu().numpy())
+
+    all_preds = np.array(all_preds)
+    all_labels = np.array(all_labels)
+    acc_global = accuracy_score(all_labels, all_preds)
+
+    # Per-class
+    per_class_acc = {}
+    per_class_support = {}
+    unique_classes = np.unique(all_labels)
+
+    for c in unique_classes:
+        idx = (all_labels == c)
+        support = idx.sum()
+        if support == 0:
+            continue
+        acc_c = (all_preds[idx] == all_labels[idx]).mean()
+        label_name = class_code_to_label[int(c)] if class_code_to_label is not None else str(c)
+        per_class_acc[label_name] = float(acc_c)
+        per_class_support[label_name] = int(support)
+
+    avg_loss = total_loss / total_count if total_count > 0 else 0.0
+    return acc_global, avg_loss, per_class_acc, per_class_support
 
 def diff_annotations(current: dict, seen: dict):
     """Return only new or changed annotations."""
