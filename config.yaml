@@ -17,3 +17,4 @@ epochs_before_query : 1
 accuracy_target: 0.80
 csv_filename: "ui_testing"
 png_filename: "ui_testing"
+labels_per_round: 10
