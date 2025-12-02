@@ -1,27 +1,29 @@
-// ----- Data from backend (injected via window.IMLVR_DATA) -----
-const {
-    embeddings,
-    actualLabels,
-    predictedLabels,
-    filenames,
-    cues,
-    isLabeledRaw,
-    datasetIndices,
-    trueCodes
-} = window.IMLVR_DATA;
+// ----- Mutable globals -----
+let embeddings       = [];
+let actualLabels     = [];
+let predictedLabels  = [];
+let filenames        = [];
+let cues             = {};
+let isLabeled        = [];
+let datasetIndices   = [];
+let trueCodes        = [];
 
-const isLabeled = isLabeledRaw.map(v => (v === true || v === "true" || v === 1));
+// all the derived arrays we need
+let xAll = [], yAll = [], zAll = [];
+let uncertainty = [], density = [], diversity = [], novelty = [], coverage = [];
+let uncertaintyNorm = [], diversityNorm = [], noveltyNorm = [], densityNorm = [], coverageNorm = [];
+let diversityBins = [];
+const opacityPerBin = [0.15, 0.45, 0.9];  // low / medium / high
+let hoverTextsAll = [];
+let classToIndex = {};
+let colorIndexAll = [];
+let nClasses = 0;
+let colorScale = [];
+let sizeAll = [];
+let symbolAll = [];
+let UNC_HIGH = NaN, DIV_HIGH = NaN, NOV_HIGH = NaN;
 
-const xAll = embeddings.map(e => e[0]);
-const yAll = embeddings.map(e => e[1]);
-const zAll = embeddings.map(e => e[2]);
-
-const uncertainty = cues["uncertainty"] || [];
-const density     = cues["density"]     || [];
-const diversity   = cues["diversity"]   || [];
-const novelty     = cues["novelty"]     || [];
-const coverage    = cues["coverage"]    || [];
-
+// ----- Helpers -----
 function normalize(arr) {
     if (!arr.length) return arr;
     const finite = arr.filter(v => Number.isFinite(v));
@@ -32,12 +34,6 @@ function normalize(arr) {
     return arr.map(v => (v - min) / range);
 }
 
-const uncertaintyNorm = normalize(uncertainty);
-const diversityNorm   = normalize(diversity);
-const noveltyNorm     = normalize(novelty);
-const densityNorm     = normalize(density);
-const coverageNorm    = normalize(coverage);
-
 function quantile(normArr, q) {
     const finite = normArr.filter(Number.isFinite);
     if (!finite.length) return NaN;
@@ -45,10 +41,6 @@ function quantile(normArr, q) {
     const idx = Math.floor(q * (sorted.length - 1));
     return sorted[idx];
 }
-
-const UNC_HIGH = quantile(uncertaintyNorm, 0.66);
-const DIV_HIGH = quantile(diversityNorm,   0.66);
-const NOV_HIGH = quantile(noveltyNorm,     0.66);
 
 function binDiversity(divNorm) {
     const finite = divNorm.filter(Number.isFinite);
@@ -67,75 +59,6 @@ function binDiversity(divNorm) {
     });
 }
 
-const diversityBins = binDiversity(diversityNorm); // 0,1,2
-const opacityPerBin = [0.15, 0.45, 0.9];  // low / medium / high
-
-const hoverTextsAll = filenames.map((f, i) =>
-    `<b>${f}</b>` +
-    `<br>Actual: ${actualLabels[i]}` +
-    `<br>Predicted: ${predictedLabels[i]}` +
-    `<br>is_labeled: ${isLabeled[i]}` +
-    `<br>uncertainty: ${uncertainty[i]?.toFixed(3)}` +
-    `<br>density: ${density[i]?.toFixed(3)}` +
-    `<br>diversity: ${diversity[i]?.toFixed(3)}` +
-    `<br>novelty: ${novelty[i]?.toFixed(3)}` +
-    `<br>coverage: ${coverage[i]?.toFixed(3)}`
-);
-
-// ----- Color by predicted class -----
-const classToIndex = {};
-let classCounter = 0;
-predictedLabels.forEach(lbl => {
-    if (!(lbl in classToIndex)) {
-        classToIndex[lbl] = classCounter++;
-    }
-});
-
-const colorIndexAll = predictedLabels.map(lbl => classToIndex[lbl]);
-
-const classColors = [
-    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-];
-
-const nClasses = Object.keys(classToIndex).length;
-const colorScale = [];
-for (let i = 0; i < nClasses; i++) {
-    const t = (nClasses === 1) ? 0.5 : i / (nClasses - 1);
-    const color = classColors[i % classColors.length];
-    colorScale.push([t, color]);
-}
-
-function buildClassLegend() {
-    const legendDiv = document.getElementById("classLegend");
-    let html = "<strong>Class colors (predicted):</strong><br>";
-    const entries = Object.entries(classToIndex).sort((a, b) => a[1] - b[1]);
-    entries.forEach(([lbl, idx]) => {
-        const color = classColors[idx % classColors.length];
-        html += `<span style="display:inline-block;width:12px;height:12px;background:${color};border:1px solid #000;margin-right:4px;"></span>`;
-        html += `<span>${lbl}</span><br>`;
-    });
-    legendDiv.innerHTML = html;
-}
-buildClassLegend();
-
-const sizeAll = uncertaintyNorm.map(u => 3 + 17 * (u || 0));  // 3..20
-
-const symbolAll = (function() {
-    if (!noveltyNorm.length) return [];
-    const finite = noveltyNorm.filter(v => Number.isFinite(v));
-    if (!finite.length) return noveltyNorm.map(_ => "circle");
-    const sorted = [...finite].sort((a,b) => a - b);
-    const q33 = sorted[Math.floor(0.33 * (sorted.length - 1))];
-    const q66 = sorted[Math.floor(0.66 * (sorted.length - 1))];
-    return noveltyNorm.map(v => {
-        if (!Number.isFinite(v)) return "circle";
-        if (v <= q33) return "x";      // low novelty
-        if (v <= q66) return "square"; // medium
-        return "circle";               // high
-    });
-})();
-
 function pick(arr, idxs) {
     return idxs.map(i => arr[i]);
 }
@@ -149,18 +72,188 @@ function getBaseVisibleIndices(hideLabeled) {
     return idxs;
 }
 
-const hideCheckbox    = document.getElementById("hideLabeledCheckbox");
-const kInput          = document.getElementById("kInput");
-const updateKBtn      = document.getElementById("updateKBtn");
-const subsetSelect    = document.getElementById("subsetSelect");
-const highUncCheckbox = document.getElementById("highUncCheckbox");
-const highDivCheckbox = document.getElementById("highDivCheckbox");
-const highNovCheckbox = document.getElementById("highNovCheckbox");
-const autoRotateCheckbox = document.getElementById("autoRotateCheckbox");
+function buildClassLegend() {
+    const legendDiv = document.getElementById("classLegend");
+    if (!legendDiv) return;
 
-const preset1Btn = document.getElementById("preset1");
-const preset2Btn = document.getElementById("preset2");
-const preset3Btn = document.getElementById("preset3");
+    let html = "<strong>Class colors (predicted):</strong><br>";
+    const entries = Object.entries(classToIndex).sort((a, b) => a[1] - b[1]);
+
+    const classColors = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+    ];
+
+    entries.forEach(([lbl, idx]) => {
+        const color = classColors[idx % classColors.length];
+        html += `<span style="display:inline-block;width:12px;height:12px;background:${color};border:1px solid #000;margin-right:4px;"></span>`;
+        html += `<span>${lbl}</span><br>`;
+    });
+    legendDiv.innerHTML = html;
+}
+
+// ----- Apply data snapshot (initial + later refreshes) -----
+function applyEmbeddingData(data) {
+    // 1) Raw data
+    embeddings      = data.embeddings || [];
+    actualLabels    = data.actual_labels || [];
+    predictedLabels = data.predicted_labels || [];
+    filenames       = data.filenames || [];
+    cues            = data.cues || {};
+    const isLabeledRaw = data.is_labeled || [];
+    datasetIndices  = data.indices || [];
+    trueCodes       = data.true_codes || [];
+
+    isLabeled = isLabeledRaw.map(v => (v === true || v === "true" || v === 1));
+
+    // 2) Basic coords
+    xAll = embeddings.map(e => e[0]);
+    yAll = embeddings.map(e => e[1]);
+    zAll = embeddings.map(e => e[2]);
+
+    // 3) Cues
+    uncertainty = cues["uncertainty"] || [];
+    density     = cues["density"]     || [];
+    diversity   = cues["diversity"]   || [];
+    novelty     = cues["novelty"]     || [];
+    coverage    = cues["coverage"]    || [];
+
+    // 4) Normalization
+    uncertaintyNorm = normalize(uncertainty);
+    diversityNorm   = normalize(diversity);
+    noveltyNorm     = normalize(novelty);
+    densityNorm     = normalize(density);
+    coverageNorm    = normalize(coverage);
+
+    // 5) Thresholds (recomputed each time)
+    UNC_HIGH = quantile(uncertaintyNorm, 0.66);
+    DIV_HIGH = quantile(diversityNorm,   0.66);
+    NOV_HIGH = quantile(noveltyNorm,     0.66);
+
+    // 6) Diversity bins
+    diversityBins = binDiversity(diversityNorm);
+
+    // 7) Hover texts
+    hoverTextsAll = filenames.map((f, i) =>
+        `<b>${f}</b>` +
+        `<br>Actual: ${actualLabels[i]}` +
+        `<br>Predicted: ${predictedLabels[i]}` +
+        `<br>is_labeled: ${isLabeled[i]}` +
+        `<br>uncertainty: ${uncertainty[i]?.toFixed(3)}` +
+        `<br>density: ${density[i]?.toFixed(3)}` +
+        `<br>diversity: ${diversity[i]?.toFixed(3)}` +
+        `<br>novelty: ${novelty[i]?.toFixed(3)}` +
+        `<br>coverage: ${coverage[i]?.toFixed(3)}`
+    );
+
+    // 8) Class color mapping
+    classToIndex = {};
+    let classCounter = 0;
+    predictedLabels.forEach(lbl => {
+        if (!(lbl in classToIndex)) {
+            classToIndex[lbl] = classCounter++;
+        }
+    });
+    colorIndexAll = predictedLabels.map(lbl => classToIndex[lbl]);
+
+    const classColors = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+    ];
+
+    nClasses = Object.keys(classToIndex).length;
+    colorScale = [];
+    for (let i = 0; i < nClasses; i++) {
+        const t = (nClasses === 1) ? 0.5 : i / (nClasses - 1);
+        const color = classColors[i % classColors.length];
+        colorScale.push([t, color]);
+    }
+
+    // 9) Marker size & symbol
+    sizeAll = uncertaintyNorm.map(u => 3 + 17 * (u || 0));  // 3..20
+
+    symbolAll = (function() {
+        if (!noveltyNorm.length) return [];
+        const finite = noveltyNorm.filter(v => Number.isFinite(v));
+        if (!finite.length) return noveltyNorm.map(_ => "circle");
+        const sorted = [...finite].sort((a,b) => a - b);
+        const q33 = sorted[Math.floor(0.33 * (sorted.length - 1))];
+        const q66 = sorted[Math.floor(0.66 * (sorted.length - 1))];
+        return noveltyNorm.map(v => {
+            if (!Number.isFinite(v)) return "circle";
+            if (v <= q33) return "x";      // low novelty
+            if (v <= q66) return "square"; // medium
+            return "circle";               // high
+        });
+    })();
+
+    // 10) Rebuild legend & redraw plot
+    buildClassLegend();
+    updatePlot();
+}
+
+// expose to other scripts (metrics.js)
+window.applyEmbeddingData = applyEmbeddingData;
+
+// ----- Plot + interactions -----
+const hideCheckbox        = document.getElementById("hideLabeledCheckbox");
+const kInput              = document.getElementById("kInput");
+const updateKBtn          = document.getElementById("updateKBtn");
+const subsetSelect        = document.getElementById("subsetSelect");
+const highUncCheckbox     = document.getElementById("highUncCheckbox");
+const highDivCheckbox     = document.getElementById("highDivCheckbox");
+const highNovCheckbox     = document.getElementById("highNovCheckbox");
+const autoRotateCheckbox  = document.getElementById("autoRotateCheckbox");
+const preset1Btn          = document.getElementById("preset1");
+const preset2Btn          = document.getElementById("preset2");
+const preset3Btn          = document.getElementById("preset3");
+const gd                  = document.getElementById('plot');
+const hoverInfoEl         = document.getElementById('hoverInfo');
+
+const layout = {
+    scene: {
+        aspectmode: "cube",
+        camera: {
+            eye: { x: 1.8, y: 1.8, z: 1.4 }
+        }
+    },
+    legend: {orientation: "h"},
+    margin: {l: 0, r: 0, t: 0, b: 0},
+    showlegend: false
+};
+
+let angle = 0;
+let isSpinning = false;
+let spinFrameId = null;
+let eventsAttached = false;
+
+function spin() {
+    if (!isSpinning) return;
+    angle += 0.003;
+    const r = 1.8;
+    Plotly.relayout(gd, {
+        'scene.camera.eye': {
+            x: r * Math.cos(angle),
+            y: r * Math.sin(angle),
+            z: 1.4
+        }
+    });
+    spinFrameId = requestAnimationFrame(spin);
+}
+
+function startSpin() {
+    if (isSpinning) return;
+    isSpinning = true;
+    spin();
+}
+
+function stopSpin() {
+    isSpinning = false;
+    if (spinFrameId !== null) {
+        cancelAnimationFrame(spinFrameId);
+        spinFrameId = null;
+    }
+}
 
 function computeHotspotIndices(k, values, baseVisibleIdxs) {
     const candidates = [];
@@ -281,62 +374,14 @@ function makeData(hideLabeledFlag, k, subsetMode, filters) {
     return traces;
 }
 
-const layout = {
-    scene: {
-        aspectmode: "cube",
-        camera: {
-            eye: { x: 1.8, y: 1.8, z: 1.4 }
-        }
-    },
-    legend: {orientation: "h"},
-    margin: {l: 0, r: 0, t: 0, b: 0},
-    showlegend: false
-};
-
-const gd = document.getElementById('plot');
-const hoverInfoEl = document.getElementById('hoverInfo');
-
-let angle = 0;
-let isSpinning = false;
-let spinFrameId = null;
-let eventsAttached = false;
-
-function spin() {
-    if (!isSpinning) return;
-    angle += 0.003;
-    const r = 1.8;
-    Plotly.relayout(gd, {
-        'scene.camera.eye': {
-            x: r * Math.cos(angle),
-            y: r * Math.sin(angle),
-            z: 1.4
-        }
-    });
-    spinFrameId = requestAnimationFrame(spin);
-}
-
-function startSpin() {
-    if (isSpinning) return;
-    isSpinning = true;
-    spin();
-}
-
-function stopSpin() {
-    isSpinning = false;
-    if (spinFrameId !== null) {
-        cancelAnimationFrame(spinFrameId);
-        spinFrameId = null;
-    }
-}
-
 function attachPlotEvents() {
     if (eventsAttached) return;
     eventsAttached = true;
 
-    // Hover feedback: show currently hovered point
+    // Hover feedback
     gd.on('plotly_hover', evt => {
         const pt = evt.points[0];
-        const globalIdx = pt.customdata;   // from customdata
+        const globalIdx = pt.customdata;
         if (globalIdx == null) {
             hoverInfoEl.innerHTML = "";
             return;
@@ -356,7 +401,7 @@ function attachPlotEvents() {
     let lastUserName = null;
     gd.on('plotly_click', evt => {
         const pt = evt.points[0];
-        const globalIdx = pt.customdata;   // index into embeddings / filenames
+        const globalIdx = pt.customdata;
         console.log("CLICK", { pt, globalIdx });
 
         if (globalIdx == null) {
@@ -364,7 +409,7 @@ function attachPlotEvents() {
             return;
         }
 
-        const dsIdx    = datasetIndices[globalIdx];  // dataset index (combined_df index)
+        const dsIdx    = datasetIndices[globalIdx];
         const fn       = filenames[globalIdx];
         const origStr  = actualLabels[globalIdx];
         const predStr  = predictedLabels[globalIdx];
@@ -407,6 +452,7 @@ function attachPlotEvents() {
 }
 
 function updatePlot() {
+    if (!gd) return;
     const kVal       = parseInt(kInput.value) || 10;
     const hideFlag   = hideCheckbox.checked;
     const subsetMode = subsetSelect.value;
@@ -447,7 +493,7 @@ autoRotateCheckbox.addEventListener('change', () => {
     }
 });
 
-// Presets matching your story
+// Presets
 preset1Btn.addEventListener('click', () => {
     kInput.value = 20;
     subsetSelect.value = 'coverage';
@@ -475,5 +521,7 @@ preset3Btn.addEventListener('click', () => {
     updatePlot();
 });
 
-// Initial render
-updatePlot();
+// Initial render using server-injected data
+if (window.IMLVR_DATA) {
+    applyEmbeddingData(window.IMLVR_DATA);
+}

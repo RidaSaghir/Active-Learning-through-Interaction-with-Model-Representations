@@ -1,4 +1,5 @@
 import json
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, FileResponse
 import pandas as pd
@@ -51,6 +52,22 @@ def plot_embeddings():
 
     return HTMLResponse(content=html)
 
+@router.get("/latest_embeddings_json")
+def latest_embeddings_json():
+    if state.latest_embeddings is None:
+        return JSONResponse({"error": "no embeddings"}, status_code=404)
+
+    return {
+        "iteration": state.latest_iteration,
+        "embeddings": state.latest_embeddings.tolist(),
+        "actual_labels": state.latest_actual_labels,
+        "predicted_labels": state.latest_predicted_labels,
+        "filenames": state.latest_filenames,
+        "cues": state.cues or {},
+        "is_labeled": state.is_labeled or [],
+        "indices": state.indices,
+        "true_codes": state.latest_true_codes,
+    }
 
 @router.get("/table", response_class=HTMLResponse)
 def get_embedding_table():

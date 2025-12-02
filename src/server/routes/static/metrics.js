@@ -1,17 +1,51 @@
-// ----- METRICS PANEL -----
 const globalAccTextEl = document.getElementById("globalAccText");
 const globalAccSubEl  = document.getElementById("globalAccSub");
 const globalAccBarEl  = document.getElementById("globalAccBar");
 const perClassListEl  = document.getElementById("perClassList");
+const iterationLabelEl = document.getElementById("iterationLabel");
+
+let lastIterationSeen = window.IMLVR_DATA ? window.IMLVR_DATA.iteration : null;
 
 function renderMetrics(m) {
-    const acc           = m.accuracy;
     const target        = m.accuracy_target || 1.0;
     const totalLabeled  = m.total_labeled ?? null;
     const humanLabeled  = m.human_labeled ?? null;
     const perClassAcc   = m.per_class_accuracy || {};
     const labeledCounts = m.labeled_counts || {};
     const phase         = m.phase || null;
+
+    if (iterationLabelEl && typeof m.iteration === "number") {
+        iterationLabelEl.textContent = `Iteration ${m.iteration}`;
+    }
+
+    if (typeof m.iteration === "number" &&
+        (lastIterationSeen === null || m.iteration > lastIterationSeen)) {
+
+        lastIterationSeen = m.iteration;
+
+        fetch("/latest_embeddings_json")
+            .then(r => r.json())
+            .then(data => {
+                if (window.applyEmbeddingData && !data.error) {
+                    window.applyEmbeddingData(data);
+                }
+            })
+            .catch(err => {
+                console.warn("Failed to refresh embeddings:", err);
+            });
+    }
+
+    //  Special case: retrain start -> keep accuracy, only change subtitle
+    if (phase === "retrain_start") {
+        globalAccSubEl.textContent =
+            `Retraining on ${humanLabeled ?? "?"} human labels…`;
+        globalAccSubEl.style.color = "#b45309";  // subtle orange
+        return;
+    } else {
+        globalAccSubEl.style.color = "#6b7280";
+    }
+
+    const acc = m.accuracy;
 
     if (typeof acc === "number" && !isNaN(acc)) {
         const accPct = (acc * 100).toFixed(1);
@@ -21,79 +55,64 @@ function renderMetrics(m) {
         const ratio = Math.max(0, Math.min(1, acc / safeTarget));
         globalAccBarEl.style.width = (ratio * 100).toFixed(1) + "%";
 
-        // ✨ phase-aware subtitle
-        if (phase === "retrain_start") {
-            globalAccSubEl.textContent =
-                `Retraining on ${humanLabeled ?? "?"} human labels…`;
-        } else {
-            let sub = `Target: ${(safeTarget * 100).toFixed(1)}%`;
-            if (totalLabeled != null) {
-                sub += ` · Labeled: ${totalLabeled}`;
-            }
-            if (humanLabeled != null) {
-                sub += ` (human: ${humanLabeled})`;
-            }
-            globalAccSubEl.textContent = sub;
+        let sub = `Target: ${(safeTarget * 100).toFixed(1)}%`;
+        if (totalLabeled != null) {
+            sub += ` · Labeled: ${totalLabeled}`;
         }
+        if (humanLabeled != null) {
+            sub += ` (human: ${humanLabeled})`;
+        }
+        globalAccSubEl.textContent = sub;
     } else {
         globalAccTextEl.textContent = "Accuracy: –";
         globalAccSubEl.textContent = "Waiting for metrics…";
         globalAccBarEl.style.width = "0%";
     }
 
-    // Per-class list
+    // 🔹 Compact per-class view: just text chips, no bars
     const entries = Object.entries(perClassAcc).sort((a, b) => a[0].localeCompare(b[0]));
     if (!entries.length) {
         perClassListEl.innerHTML = "<em>No per-class metrics yet.</em>";
         return;
     }
 
-    let html = "";
+    let html = `
+        <div style="
+            display:flex;
+            flex-wrap:wrap;
+            gap:0.35rem;
+        ">
+    `;
+
     for (const [cls, accC] of entries) {
         const accPct = (accC * 100).toFixed(1);
         const count = labeledCounts[cls] || 0;
         const discovered = count > 0;
 
-        const barWidth = Math.max(3, Math.min(100, accC * 100)); // 3..100%
-        const barColor = discovered ? "#3b82f6" : "#9ca3af";
-
-        const badgeText  = discovered ? `${count} labeled` : "0 labeled · not discovered";
-        const badgeColor = discovered ? "#dcfce7" : "#f3f4f6";
-        const badgeBorder= discovered ? "#22c55e" : "#d4d4d8";
-        const badgeTextColor = discovered ? "#166534" : "#4b5563";
+        const badgeColor     = discovered ? "#eef2ff" : "#f3f4f6";
+        const badgeBorder    = discovered ? "#4f46e5" : "#d4d4d8";
+        const badgeTextColor = discovered ? "#3730a3" : "#4b5563";
+        const suffix         = discovered ? ` · ${count} labeled` : " · 0 labeled";
 
         html += `
-            <div style="display:flex; align-items:center; margin-bottom:0.25rem;">
-                <div style="flex:0 0 90px; font-weight:500;">${cls}</div>
-                <div style="flex:1; margin:0 0.75rem;">
-                    <div style="width:100%; height:8px; border-radius:999px; background:#e5e7eb; overflow:hidden;">
-                        <div style="
-                            height:100%;
-                            width:${barWidth}%;
-                            background:${barColor};
-                            transition:width 0.4s ease;
-                        "></div>
-                    </div>
-                </div>
-                <div style="flex:0 0 60px; font-variant-numeric:tabular-nums; text-align:right; margin-right:0.5rem;">
-                    ${accPct}%
-                </div>
-                <div style="
-                    flex:0 0 auto;
-                    font-size:0.7rem;
-                    padding:0.1rem 0.45rem;
-                    border-radius:999px;
-                    border:1px solid ${badgeBorder};
-                    background:${badgeColor};
-                    color:${badgeTextColor};
-                ">
-                    ${badgeText}
-                </div>
-            </div>
+            <span style="
+                font-size:0.75rem;
+                padding:0.15rem 0.5rem;
+                border-radius:999px;
+                border:1px solid ${badgeBorder};
+                background:${badgeColor};
+                color:${badgeTextColor};
+                white-space:nowrap;
+            ">
+                ${cls}: ${accPct}%${suffix}
+            </span>
         `;
     }
+
+    html += `</div>`;
     perClassListEl.innerHTML = html;
 }
+
 
 function pollMetrics() {
     fetch("/metrics")
@@ -110,5 +129,4 @@ function pollMetrics() {
 
 // Poll every 3 seconds
 setInterval(pollMetrics, 3000);
-// And once at startup
 pollMetrics();
