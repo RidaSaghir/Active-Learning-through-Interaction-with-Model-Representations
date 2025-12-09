@@ -17,6 +17,7 @@
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
             <div>
                 <h2 style="margin:0 0 0.25rem 0; font-size:1.4rem;">
+                <h2 style="margin:0 0 0.25rem 0; font-size:1.4rem;">
                     Human-in-the-loop Active Learning
                 </h2>
                 <div style="font-size:0.9rem; color:#555;">
@@ -194,6 +195,28 @@
             </button>
         </div>
 
+                <!-- RETRAINING BANNER -->
+        <div id="retrainBanner" style="
+            display:none;
+            margin-top:0.75rem;
+            padding:0.6rem 0.75rem;
+            border-radius:10px;
+            background:#fef3c7;
+            border:1px solid #f59e0b;
+            font-size:0.8rem;
+            color:#92400e;
+            display:flex;
+            align-items:center;
+            gap:0.5rem;
+        ">
+            <span style="font-weight:600;">Retraining in progress.</span>
+            <span>
+                The model is updating on your latest labels.
+                Please pause labeling until retraining finishes.
+            </span>
+        </div>
+
+
         <!-- PLOT -->
         <div id="plot" style="width: 100%; height: 600px; margin-top:1rem;"></div>
 
@@ -221,18 +244,16 @@
 
 
     <!-- Inject data for JS -->
-    <script>
-      window.IMLVR_DATA = {
-        embeddings: {{EMBEDDINGS}},
-        actualLabels: {{LABELS}},
-        predictedLabels: {{PRED}},
-        filenames: {{FILENAMES}},
-        cues: {{CUES}},
-        isLabeledRaw: {{ISLABELED}},
-        datasetIndices: {{INDICES}},
-        trueCodes: {{TRUE_CODES}}
-      };
+    <script id="initialData" type="application/json">
+    {{SERVER_JSON}}
     </script>
+
+    <script>
+        window.IMLVR_DATA = JSON.parse(
+            document.getElementById("initialData").textContent
+        );
+    </script>
+
     <!-- External JS files -->
     <script src="static/embeddings.js"></script>
     <script src="static/metrics.js"></script>

@@ -5,7 +5,7 @@ import os
 import numpy as np
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 from config import HUMAN_ANNOTATIONS
 
 def evaluate_model(model, dataset, batch_size=32):
@@ -58,9 +58,12 @@ def evaluate_model_with_per_class(model, dataset, batch_size=32, class_code_to_l
 
     all_preds = np.array(all_preds)
     all_labels = np.array(all_labels)
-    acc_global = accuracy_score(all_labels, all_preds)
 
-    # Per-class
+    acc_global = accuracy_score(all_labels, all_preds)
+    macro_f1 = f1_score(all_labels, all_preds, average="macro")
+    micro_f1 = f1_score(all_labels, all_preds, average="micro")
+
+    # Per-class using all labels
     per_class_acc = {}
     per_class_support = {}
     unique_classes = np.unique(all_labels)
@@ -75,8 +78,16 @@ def evaluate_model_with_per_class(model, dataset, batch_size=32, class_code_to_l
         per_class_acc[label_name] = float(acc_c)
         per_class_support[label_name] = int(support)
 
+    unique_preds = np.unique(all_preds)
+    discovered_classes = [
+        class_code_to_label[int(c)] if class_code_to_label else str(c)
+        for c in unique_preds
+    ]
+    num_discovered = len(discovered_classes)
+    total_classes = len(class_code_to_label) if class_code_to_label else len(unique_classes)
+
     avg_loss = total_loss / total_count if total_count > 0 else 0.0
-    return acc_global, avg_loss, per_class_acc, per_class_support
+    return acc_global, avg_loss, per_class_acc, per_class_support, macro_f1, micro_f1, num_discovered, total_classes, discovered_classes
 
 def diff_annotations(current: dict, seen: dict):
     """Return only new or changed annotations."""

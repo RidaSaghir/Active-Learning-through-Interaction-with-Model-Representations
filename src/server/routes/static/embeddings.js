@@ -399,56 +399,61 @@ function attachPlotEvents() {
     });
 
     let lastUserName = null;
-    gd.on('plotly_click', evt => {
-        const pt = evt.points[0];
-        const globalIdx = pt.customdata;
-        console.log("CLICK", { pt, globalIdx });
-
-        if (globalIdx == null) {
-            console.warn("No customdata/globalIdx for clicked point");
+    gd.on('plotly_click', async (evt) => {
+        if (window.isRetraining) {
+            alert("The model is currently retraining. Please wait.");
             return;
         }
 
-        const dsIdx    = datasetIndices[globalIdx];
-        const fn       = filenames[globalIdx];
-        const origStr  = actualLabels[globalIdx];
-        const predStr  = predictedLabels[globalIdx];
+        const pt = evt.points[0];
+        const globalIdx = pt.customdata;
+        const filename = filenames[globalIdx];
+        const dsIdx = datasetIndices[globalIdx];
+        const origStr = actualLabels[globalIdx];
+        const predStr = predictedLabels[globalIdx];
         const trueCode = trueCodes[globalIdx];
 
-        console.log("ANNOT", { dsIdx, fn, origStr, predStr, trueCode });
+        try {
+            // Play audio
+            const audio = new Audio(`/audio/${filename}`);
+            await audio.play();
 
-        if (!lastUserName) {
-            const name = prompt("Annotator name:", "user1");
-            if (!name) return;
-            lastUserName = name;
-        }
+            // Ask for confirmation to label
+            const confirmLabel = confirm(`Now playing: ${filename}\nDo you want to sumit the ground-truth label?`);
+            if (!confirmLabel) {
+                audio.pause();
+                audio.src = "";
+                return;
+            }
 
-        fetch("/human_annotations", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-                filenames: [fn],
-                indices:   [dsIdx],
-                labels:    [trueCode],
-                user:      lastUserName
-            })
-        })
-        .then(r => {
-            console.log("POST status", r.status);
-            return r.json();
-        })
-        .then(data => {
+            if (!window.lastUserName) {
+                const name = prompt("Annotator name:", "user1");
+                if (!name) return;
+                window.lastUserName = name;
+            }
+            const res = await fetch("/human_annotations", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    filenames: [filename],
+                    indices: [dsIdx],
+                    labels: [trueCode],
+                    user: window.lastUserName
+                })
+            });
+
+            const data = await res.json();
             console.log("Annotation stored:", data);
             hoverInfoEl.innerHTML =
-                `Annotated: <strong>${fn}</strong>` +
+                `Annotated: <strong>${filename}</strong>` +
                 ` · true label=${origStr} (code=${trueCode})` +
-                ` · user=${lastUserName}`;
-        })
-        .catch(err => {
-            console.error("Failed to send annotation:", err);
-            alert("Failed to send annotation. See console for details.");
-        });
+                ` · user=${window.lastUserName}`;
+        } catch (err) {
+            console.error("Audio failed to play", err);
+            alert(`Failed to play audio for: ${filename}`);
+        }
     });
+
 }
 
 function updatePlot() {

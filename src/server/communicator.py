@@ -69,6 +69,8 @@ class RestCommunicator:
         human_labeled=None,
         per_class_accuracy=None,
         labeled_counts=None,
+        macro_f1=None,
+        micro_f1=None,
         phase=None,
     ):
         payload = {
@@ -80,6 +82,8 @@ class RestCommunicator:
             "human_labeled": human_labeled,
             "per_class_accuracy": per_class_accuracy or {},
             "labeled_counts": labeled_counts or {},
+            "macro_f1": macro_f1,
+            "micro_f1": micro_f1,
             "phase": phase,
         }
         try:

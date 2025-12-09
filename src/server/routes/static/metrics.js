@@ -1,10 +1,18 @@
+if (typeof window.isRetraining === "undefined") {
+    window.isRetraining = false;
+}
+
 const globalAccTextEl = document.getElementById("globalAccText");
 const globalAccSubEl  = document.getElementById("globalAccSub");
 const globalAccBarEl  = document.getElementById("globalAccBar");
 const perClassListEl  = document.getElementById("perClassList");
 const iterationLabelEl = document.getElementById("iterationLabel");
+const retrainBannerEl   = document.getElementById("retrainBanner");
+
 
 let lastIterationSeen = window.IMLVR_DATA ? window.IMLVR_DATA.iteration : null;
+
+
 
 function renderMetrics(m) {
     const target        = m.accuracy_target || 1.0;
@@ -23,7 +31,7 @@ function renderMetrics(m) {
 
         lastIterationSeen = m.iteration;
 
-        fetch("/latest_embeddings_json")
+        fetch("/latest_embeddings")
             .then(r => r.json())
             .then(data => {
                 if (window.applyEmbeddingData && !data.error) {
@@ -37,12 +45,21 @@ function renderMetrics(m) {
 
     //  Special case: retrain start -> keep accuracy, only change subtitle
     if (phase === "retrain_start") {
+        window.isRetraining = true;
         globalAccSubEl.textContent =
             `Retraining on ${humanLabeled ?? "?"} human labels…`;
         globalAccSubEl.style.color = "#b45309";  // subtle orange
+        if (retrainBannerEl) {
+            retrainBannerEl.style.display = "flex";
+        }
+        window.isRetraining = true;
         return;
     } else {
         globalAccSubEl.style.color = "#6b7280";
+        if (retrainBannerEl) {
+            retrainBannerEl.style.display = "none";
+        }
+        window.isRetraining = false;
     }
 
     const acc = m.accuracy;
@@ -63,6 +80,20 @@ function renderMetrics(m) {
             sub += ` (human: ${humanLabeled})`;
         }
         globalAccSubEl.textContent = sub;
+        const macroF1 = m.macro_f1 ?? null;
+        const discovered = Object.values(labeledCounts).filter(cnt => cnt > 0).length;
+        const discoveredOutOf = Object.keys(perClassAcc).length;
+
+        if (macroF1 != null && discoveredOutOf > 0) {
+            const extra = `Macro-F1: ${(macroF1 * 100).toFixed(1)}% · Discovered: ${discovered}/${discoveredOutOf}`;
+            const f1El = document.createElement("div");
+            f1El.style.fontSize = "0.78rem";
+            f1El.style.color = "#444";
+            f1El.style.marginTop = "0.25rem";
+            f1El.textContent = extra;
+            globalAccSubEl.parentNode.appendChild(f1El);
+        }
+
     } else {
         globalAccTextEl.textContent = "Accuracy: –";
         globalAccSubEl.textContent = "Waiting for metrics…";

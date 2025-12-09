@@ -2,15 +2,15 @@
 import os, csv, time
 from config import NUM_CLASSES
 
-def append_curve_row(csv_path, iteration, total_labeled, human_labeled, acc, loss):
+def append_curve_row(csv_path, iteration, total_labeled, human_labeled, acc, loss, macro_f1, micro_f1, num_discovered, total_classes):
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     new_file = not os.path.exists(csv_path)
     with open(csv_path, "a", newline="") as f:
         w = csv.writer(f)
         if new_file:
-            w.writerow(["timestamp", "iteration", "total_labeled", "human_labeled", "accuracy", "loss"])
+            w.writerow(["timestamp", "iteration", "total_labeled", "human_labeled", "accuracy", "loss", "macro_f1", "micro_f1", "num_discovered", "total_classes"])
         w.writerow([int(time.time()), int(iteration), int(total_labeled), int(human_labeled),
-                    float(acc), float(loss)])
+                    float(acc), float(loss), float(macro_f1), float(micro_f1), int(num_discovered), int(total_classes)])
 
 # Optional: save a quick plot (no server deps)
 def save_curve_png(csv_path, png_path, init_labels, human_annotations):

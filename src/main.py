@@ -105,7 +105,7 @@ def run_trainer():
         )
 
         # 3) Evaluate + send + checkpoint
-        acc_global, avg_loss, per_class_acc, per_class_support = evaluate_model_with_per_class(
+        acc_global, avg_loss, per_class_acc, per_class_support, macro_f1, micro_f1, num_discovered, total_classes, discovered_classes = evaluate_model_with_per_class(
             model, test_dataset, class_code_to_label=class_code_to_label
         )
 
@@ -128,7 +128,11 @@ def run_trainer():
             total_labeled=total_labeled_now,
             human_labeled=human_labels_so_far,
             acc=acc_global,
-            loss=avg_loss
+            loss=avg_loss,
+            macro_f1=macro_f1,
+            micro_f1=micro_f1,
+            num_discovered=num_discovered,
+            total_classes=total_classes,
         )
         save_curve_png(curve_csv, curve_png, init_labels=INITIAL_LABELS_PER_CLASS_COUNT, human_annotations=NUM_ANNOTATION_SUGGESTIONS)
         log.info(f"Sent metrics to {curve_csv}")
@@ -141,6 +145,8 @@ def run_trainer():
             human_labeled=human_labels_so_far,
             per_class_accuracy=per_class_acc,
             labeled_counts=labeled_counts,
+            macro_f1=macro_f1,
+            micro_f1=micro_f1
         )
         torch.save({
             'model_state_dict': model.state_dict(),

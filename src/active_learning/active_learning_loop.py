@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import itertools
-from config import NUM_ANNOTATION_SUGGESTIONS
+from config import NUM_ANNOTATION_SUGGESTIONS, ANNOTATION_SUGGESTIONS_USING, PRODUCE_ANNOTATION_SUGGESTIONS
 from utils.misc import load_annotations, diff_annotations
 from utils.logging_utils import get_logger, log_duration
 from active_learning.cue_computer import compute_cues_from_view
@@ -10,25 +10,41 @@ from active_learning.cue_computer import compute_cues_from_view
 
 
 class UncertaintySampler:
-    def select(self, unlabeled_loader, model, n=NUM_ANNOTATION_SUGGESTIONS):
-        device = next(model.parameters()).device
-        model.eval()
-        all_entropies, all_indices = [], []
-        with torch.no_grad():
-            for x, _, _, _, idx in unlabeled_loader:
-                x = x.to(device, non_blocking=True)
-                logits, _ = model(x)
-                logp = F.log_softmax(logits, dim=1)
-                p = logp.exp()
-                ent = -(p * logp).sum(dim=1)          # [B]
-                all_entropies.append(ent.cpu())
-                all_indices.append(idx)               # idx is already a tensor
+    def select_from_cues(
+        self,
+        cues: dict,
+        is_labeled_np: np.ndarray,
+        indices: list,
+        using: str,
+        n: int = NUM_ANNOTATION_SUGGESTIONS,
+    ):
+        """
+        Select top-n unlabeled indices according to a single cue.
+        `cues` is the dict from compute_cues_from_view.
+        `indices` are dataset indices aligned with cues arrays.
+        """
+        cue_key = using
+        if cue_key not in cues:
+            raise ValueError(f"Unknown cue '{using}'. Available: {list(cues.keys())}")
 
-        ent = torch.cat(all_entropies)                # [N_unlabeled]
-        idx = torch.cat(all_indices)                  # [N_unlabeled]
-        k = min(n, ent.numel())
-        topk = torch.topk(ent, k=k, largest=True)
-        return idx[topk.indices].tolist()
+        scores_all = np.asarray(cues[cue_key], dtype=float)
+
+        # Only consider unlabeled samples
+        mask_unlabeled = ~is_labeled_np.astype(bool)      # [N]
+        unlabeled_positions = np.where(mask_unlabeled)[0] # positions in arrays
+        if len(unlabeled_positions) == 0:
+            return []
+
+        scores_u = scores_all[unlabeled_positions]
+        k = min(n, len(scores_u))
+
+        # higher score = more interesting → descending
+        topk_rel = np.argsort(scores_u)[-k:]
+        chosen_positions = unlabeled_positions[topk_rel]
+
+        # Convert back to dataset indices (used by /annotate API)
+        chosen_dataset_indices = [indices[i] for i in chosen_positions]
+        return chosen_dataset_indices
 
 
 
@@ -144,28 +160,36 @@ class ActiveLearningLoop:
         for local_iteration in range(num_iters):
             x, y, _, filenames, idx = self.manager.next_batch()
             train_loss, train_accuracy = self.model.train_step(x, y)
-            self.log.info(f"step={global_iteration} | batch={len(y)} | loss={train_loss:.4f} | acc={train_accuracy:.3f}")
-            #self.communicator.send_metrics(global_iteration, train_accuracy, train_loss)
-            emb_np, actual_labels, predicted_labels, filenames, indices, prob_np, is_labeled, true_codes = self.gather_full_dataset_view(self.manager)
-            cues = compute_cues_from_view(
-                emb_np=emb_np,
-                prob_np=prob_np,
-                is_labeled_np=is_labeled,
-                labeled_counts=self.manager.get_class_counts(),
-                k_density=15,
-            )
-
-            self.communicator.maybe_send(iteration= global_iteration, embeddings=emb_np, actual_labels=actual_labels,
-                                             predicted_labels=predicted_labels, filenames=filenames, indices=indices,
-                                             is_labeled=is_labeled, cues=cues, true_codes=true_codes)
-
+            self.log.info(f"iteration={global_iteration} | batch={len(y)} | loss={train_loss:.4f} | acc={train_accuracy:.3f}")
             global_iteration += 1
 
-        # Propose new items once, after the configured number of epochs
-        unlabeled_loader = self.manager.get_unlabeled_loader()
-        new_ids = self.sampler.select(unlabeled_loader, self.model)
-        filenames_to_annotate = [self.manager.dataset[i][3] for i in new_ids]
-        self.log.info(f"Suggest annotations | count={len(new_ids)}")
-        self.communicator.send_annotation_request(filenames_to_annotate, new_ids)
+        emb_np, actual_labels, predicted_labels, filenames, indices, prob_np, is_labeled, true_codes = self.gather_full_dataset_view(
+            self.manager)
+        cues = compute_cues_from_view(
+            emb_np=emb_np,
+            prob_np=prob_np,
+            is_labeled_np=is_labeled,
+            labeled_counts=self.manager.get_class_counts(),
+            k_density=15,
+        )
+        self.communicator.send_embeddings(iteration=global_iteration, embeddings=emb_np, actual_labels=actual_labels,
+                                     predicted_labels=predicted_labels, filenames=filenames, indices=indices,
+                                     is_labeled=is_labeled, cues=cues, true_codes=true_codes)
+        if PRODUCE_ANNOTATION_SUGGESTIONS:
+            self.log.info(f"Computing suggestions based on {ANNOTATION_SUGGESTIONS_USING}")
+            new_ids = self.sampler.select_from_cues(
+                cues=cues,
+                is_labeled_np=is_labeled,
+                indices=indices,
+                using=ANNOTATION_SUGGESTIONS_USING,
+                n=NUM_ANNOTATION_SUGGESTIONS,
+            )
+            filenames_to_annotate = [self.manager.dataset[i][3] for i in new_ids]
+            self.log.info(
+                f"Suggest annotations | count={len(new_ids)} "
+                f"| cue={ANNOTATION_SUGGESTIONS_USING}"
+            )
+            self.communicator.send_annotation_request(filenames_to_annotate, new_ids)
+
         return global_iteration, train_loss
 

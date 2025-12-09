@@ -37,18 +37,19 @@ def plot_embeddings():
     indices = state.indices
     true_codes = state.true_codes
 
-    html = (
-        html_template
-        .replace("{{ITER}}", str(state.latest_iteration))
-        .replace("{{EMBEDDINGS}}", json.dumps(embeddings))
-        .replace("{{LABELS}}", json.dumps(actual_labels))
-        .replace("{{PRED}}", json.dumps(predicted_labels))
-        .replace("{{CUES}}", json.dumps(cues))
-        .replace("{{FILENAMES}}", json.dumps(filenames))
-        .replace("{{ISLABELED}}", json.dumps(is_labeled))
-        .replace("{{TRUE_CODES}}", json.dumps(state.true_codes))
-        .replace("{{INDICES}}", json.dumps(state.indices))
-    )
+    payload = {
+        "iteration": state.latest_iteration,
+        "embeddings": embeddings,
+        "actual_labels": actual_labels,
+        "predicted_labels": predicted_labels,
+        "filenames": filenames,
+        "cues": cues,
+        "is_labeled": is_labeled,
+        "indices": indices,
+        "true_codes": true_codes,
+    }
+
+    html = html_template.replace("{{SERVER_JSON}}", json.dumps(payload))
 
     return HTMLResponse(content=html)
 
@@ -66,7 +67,7 @@ def latest_embeddings_json():
         "cues": state.cues or {},
         "is_labeled": state.is_labeled or [],
         "indices": state.indices,
-        "true_codes": state.latest_true_codes,
+        "true_codes": state.true_codes,
     }
 
 @router.get("/table", response_class=HTMLResponse)
