@@ -1,5 +1,8 @@
+# DATASET SETTINGS
 data_dir: '/Users/ridasaghir/Documents/Datasets/UrbanSound8K'
 num_classes: 10
+
+# MODEL SETTINGS
 sample_rate: 16000
 target_duration: 4.0
 embedding_dim: 1024
@@ -9,12 +12,24 @@ check_point : "model_checkpoint.pth"
 human_annotations: "human_annotations.json"
 learning_rate : 1e-3
 batch_size : 32
-initial_labels_per_class_count : 10
-num_annotation_suggestions : 20
-#num_iterations : 5
-held_out_fold : 10
+
+# EXPERIMENT SETTINGS
 epochs_before_query : 1
 accuracy_target: 0.80
+held_out_fold : 10
 csv_filename: "ui_testing"
 png_filename: "ui_testing"
 labels_per_round: 10
+produce_annotation_suggestions: False
+annotation_suggestions_using: "coverage"
+num_annotation_suggestions : 10
+
+# NON-COLD START SETTINGS
+initial_labels_per_class_count : 10 # For NON-cold start mode
+
+# COLD START SETTINGS
+cold_start_with_user: True
+initial_labels_required : 50 # For Cold start mode
+
+
+

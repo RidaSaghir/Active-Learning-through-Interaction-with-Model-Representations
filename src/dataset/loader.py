@@ -99,7 +99,7 @@ class UrbanSoundLoader:
         log.info(f"Cache saved | {key}")
         return np.load(emb_path, mmap_mode="r")
 
-    def get_labeled_unlabeled_datasets(self, held_out_fold, labeled_count=50):
+    def get_labeled_unlabeled_datasets(self, held_out_fold):
         df = pd.read_csv(self.metadata_path)
         df['class_code'] = df['class'].astype('category').cat.codes
         class_code_to_label = dict(enumerate(df['class'].astype('category').cat.categories))

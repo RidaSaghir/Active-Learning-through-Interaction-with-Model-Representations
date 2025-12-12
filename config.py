@@ -27,3 +27,8 @@ ACCURACY_TARGET = cfg.get("accuracy_target")
 CSV_FILENAME = cfg.get("csv_filename")
 PNG_FILENAME = cfg.get("png_filename")
 LABELS_PER_ROUND = cfg.get("labels_per_round")
+PRODUCE_ANNOTATION_SUGGESTIONS = cfg.get("produce_annotation_suggestions")
+ANNOTATION_SUGGESTIONS_USING = cfg.get("annotation_suggestions_using")
+COLD_START_WITH_USER = cfg.get("cold_start_with_user")
+
+
