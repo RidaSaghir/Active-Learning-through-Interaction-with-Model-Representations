@@ -1,5 +1,6 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field, validator
 from typing import List, Dict, Optional
+from datetime import datetime
 
 class EmbeddingPayload(BaseModel):
     iteration: int
@@ -41,6 +42,7 @@ class HumanAnnotation(BaseModel):
     indices: List[int]
     labels: List[int]
     user: Optional[str] = "anonymous"
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
     @validator("labels")
     def _len_match_labels(cls, v, values):
