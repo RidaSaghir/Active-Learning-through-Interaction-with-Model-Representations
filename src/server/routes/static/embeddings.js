@@ -1,3 +1,19 @@
+const CLASS_MAP = {
+    "air_conditioner": 0,
+    "car_horn": 1,
+    "children_playing": 2,
+    "dog_bark": 3,
+    "drilling": 4,
+    "engine_idling": 5,
+    "gun_shot": 6,
+    "jackhammer": 7,
+    "siren": 8,
+    "street_music": 9
+};
+
+const CLASS_NAMES = Object.keys(CLASS_MAP);
+
+
 // ----- Mutable globals -----
 let embeddings       = [];
 let actualLabels     = [];
@@ -136,7 +152,7 @@ function applyEmbeddingData(data) {
     // 7) Hover texts
     hoverTextsAll = filenames.map((f, i) =>
         `<b>${f}</b>` +
-        `<br>Actual: ${actualLabels[i]}` +
+        //`<br>Actual: ${actualLabels[i]}` +
         `<br>Predicted: ${predictedLabels[i]}` +
         `<br>is_labeled: ${isLabeled[i]}` +
         `<br>uncertainty: ${uncertainty[i]?.toFixed(3)}` +
@@ -226,6 +242,27 @@ let angle = 0;
 let isSpinning = false;
 let spinFrameId = null;
 let eventsAttached = false;
+
+function promptForLabel() {
+    const options = CLASS_NAMES
+        .map((c, i) => `${i}: ${c}`)
+        .join("\n");
+
+    const input = prompt(
+        "Select label by number:\n" + options
+    );
+
+    if (input === null) return null;
+
+    const idx = parseInt(input);
+    if (isNaN(idx) || idx < 0 || idx >= CLASS_NAMES.length) {
+        alert("Invalid selection");
+        return null;
+    }
+
+    return CLASS_NAMES[idx];
+}
+
 
 function spin() {
     if (!isSpinning) return;
@@ -409,22 +446,18 @@ function attachPlotEvents() {
         const globalIdx = pt.customdata;
         const filename = filenames[globalIdx];
         const dsIdx = datasetIndices[globalIdx];
-        const origStr = actualLabels[globalIdx];
         const predStr = predictedLabels[globalIdx];
-        const trueCode = trueCodes[globalIdx];
 
         try {
             // Play audio
             const audio = new Audio(`/audio/${filename}`);
             await audio.play();
 
-            // Ask for confirmation to label
-            const confirmLabel = confirm(`Now playing: ${filename}\nDo you want to sumit the ground-truth label?`);
-            if (!confirmLabel) {
-                audio.pause();
-                audio.src = "";
-                return;
-            }
+
+            const selectedClass = promptForLabel();
+            if (!selectedClass) return;
+
+            const classCode = CLASS_MAP[selectedClass];
 
             if (!window.lastUserName) {
                 const name = prompt("Annotator name:", "user1");
@@ -437,7 +470,7 @@ function attachPlotEvents() {
                 body: JSON.stringify({
                     filenames: [filename],
                     indices: [dsIdx],
-                    labels: [trueCode],
+                    labels: [classCode],
                     user: window.lastUserName
                 })
             });
@@ -446,7 +479,8 @@ function attachPlotEvents() {
             console.log("Annotation stored:", data);
             hoverInfoEl.innerHTML =
                 `Annotated: <strong>${filename}</strong>` +
-                ` · true label=${origStr} (code=${trueCode})` +
+                ` · label=${selectedClass}` +
+                ` · code=${classCode}` +
                 ` · user=${window.lastUserName}`;
         } catch (err) {
             console.error("Audio failed to play", err);
