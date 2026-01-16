@@ -58,31 +58,42 @@ class ActiveLearningLoop:
         self._seen_annotations = {}
         self.log = get_logger("imlvr.active_learning")
 
-
     def gather_full_dataset_view(self, manager):
         """
-            Returns:
-                emb_np:        [N, d] float32
-                actual_labels: list length N (original labels if available)
-                predicted:     list length N (string labels)
-                filenames:     list length N
-                indices:       list length N (dataset indices)
-                prob_np:       [N, C] float32  model probabilities
-                is_labeled:    np.bool_ [N]     True for labeled pool
-            """
+        Returns:
+            emb_np:        [N, d] float32
+            actual_labels: list length N (original labels if available)
+            predicted:     list length N (string labels)
+            filenames:     list length N
+            indices:       list length N (dataset indices)
+            prob_np:       [N, C] float32  model probabilities
+            is_labeled:    np.bool_ [N]     True for labeled pool
+            true_codes:    list length N
+        """
         self.log.info("Gather full dataset view (for frontend)")
-        embeddings, predicted_labels, actual_labels, filenames, indices = [], [], [], [], []
-        probs, is_labeled, true_codes = [], [], []
+
+        embeddings = []
+        probs = []
+        predicted_labels = []
+        actual_labels = []
+        filenames = []
+        indices = []
+        is_labeled = []
+        true_codes = []
 
         self.model.eval()
+
+        # ---- LABELED SAMPLES ----
         with torch.no_grad():
             for embedding_tensor, label_tensor, original_label, filename, index in manager.iter_labeled():
-                logits, z = self.model(embedding_tensor.unsqueeze(0))
-                p = torch.softmax(logits, dim=1).squeeze(0)
-                embeddings.append(z.squeeze(0).numpy())
-                probs.append(p.cpu().numpy())
+                x = embedding_tensor.unsqueeze(0)  # [1, D]
 
-                pred_code = int(p.argmax().item())
+                z = self.model.project(x)[0]  # numpy [d]
+                p = self.model.predict_proba(x)[0]  # numpy [C]
+                pred_code = int(p.argmax())
+
+                embeddings.append(z)
+                probs.append(p)
                 predicted_labels.append(self.class_code_to_label[pred_code])
                 actual_labels.append(original_label)
                 filenames.append(filename)
@@ -90,15 +101,16 @@ class ActiveLearningLoop:
                 is_labeled.append(True)
                 true_codes.append(int(label_tensor.item()))
 
-            # Unlabeled
+            # ---- UNLABELED SAMPLES ----
             for embedding_tensor, label_tensor, original_label, filename, index in manager.iter_unlabeled():
-                logits, z = self.model(embedding_tensor.unsqueeze(0))
-                p = torch.softmax(logits, dim=1).squeeze(0)
+                x = embedding_tensor.unsqueeze(0)  # [1, D]
 
-                embeddings.append(z.squeeze(0).numpy())
-                probs.append(p.cpu().numpy())
+                z = self.model.project(x)[0]  # numpy [d]
+                p = self.model.predict_proba(x)[0]  # numpy [C]
+                pred_code = int(p.argmax())
 
-                pred_code = torch.argmax(logits, dim=1).item()
+                embeddings.append(z)
+                probs.append(p)
                 predicted_labels.append(self.class_code_to_label[pred_code])
                 actual_labels.append(original_label)
                 filenames.append(filename)
@@ -106,15 +118,33 @@ class ActiveLearningLoop:
                 is_labeled.append(False)
                 true_codes.append(int(label_tensor.item()))
 
-        # >>> make it an array here (and handle empty)
-        emb_np = np.empty((0, self.model.classifier.in_features), np.float32) if len(embeddings) == 0 \
-                else np.stack(embeddings, axis=0).astype(np.float32)
-        prob_np = np.empty((0, self.model.num_classes), np.float32) if len(probs) == 0 \
-            else np.stack(probs).astype(np.float32)
-        is_labeled = np.array(is_labeled, dtype=np.bool_)
+        # ---- STACK OUTPUTS ----
+        emb_np = (
+            np.stack(embeddings).astype(np.float32)
+            if embeddings else np.empty((0, 0), np.float32)
+        )
 
-        self.log.info(f"Gathered view | total={len(filenames)} | dims={emb_np.shape[1]}")
-        return emb_np, actual_labels, predicted_labels, filenames, indices, prob_np, is_labeled, true_codes
+        prob_np = (
+            np.stack(probs).astype(np.float32)
+            if probs else np.empty((0, 0), np.float32)
+        )
+
+        is_labeled_np = np.array(is_labeled, dtype=np.bool_)
+
+        self.log.info(
+            f"Gathered view | total={len(filenames)} | dims={emb_np.shape[1] if emb_np.size else 0}"
+        )
+
+        return (
+            emb_np,
+            actual_labels,
+            predicted_labels,
+            filenames,
+            indices,
+            prob_np,
+            is_labeled_np,
+            true_codes,
+        )
 
     def _apply_new_annotations_and_train(self, device=None, epochs=1, replay_fraction=0.0):
         """Load human_annotations.json, take only NEW items, train on them."""

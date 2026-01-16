@@ -10,6 +10,7 @@ from dataset.loader import UrbanSoundLoader
 from dataset.labeled_manager import LabeledSetManager
 from embeddings.pretrained_model import YAMNetEmbedder
 from classifier.trainable_model import TrainableModel
+from classifier.model_factory import build_model
 from active_learning.active_learning_loop import UncertaintySampler, ActiveLearningLoop
 from server.communicator import RestCommunicator
 from server.app import create_app
@@ -18,7 +19,8 @@ from utils.misc import load_annotations, evaluate_model_with_per_class
 from utils.logging_utils import setup_logging, get_logger
 from utils.curve import append_curve_row, save_curve_png
 from config import (CHECKPOINT, BATCH_SIZE, HELD_OUT_FOLD, EPOCHS_BEFORE_QUERY, NUM_ANNOTATION_SUGGESTIONS,
-                    INITIAL_LABELS_PER_CLASS_COUNT, ACCURACY_TARGET, CSV_FILENAME, PNG_FILENAME, LABELS_PER_ROUND)
+                    INITIAL_LABELS_PER_CLASS_COUNT, ACCURACY_TARGET, CSV_FILENAME, PNG_FILENAME,
+                    LABELS_PER_ROUND, MODEL_VARIANT)
 
 def start_api_in_thread(host="0.0.0.0", port=8000):
     app = create_app()
@@ -34,7 +36,11 @@ def run_trainer():
 
     embedder = YAMNetEmbedder()
     loader = UrbanSoundLoader(embedder)
-    model = TrainableModel(input_dim=1024, embedding_dim=3, num_classes=10)
+    model = build_model(
+        variant=MODEL_VARIANT,
+        input_dim=1024,
+        num_classes=10
+    )
     sampler = UncertaintySampler()
     communicator = RestCommunicator()
     log.info("Startup: created components")

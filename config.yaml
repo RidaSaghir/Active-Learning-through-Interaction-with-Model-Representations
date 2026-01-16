@@ -2,6 +2,14 @@
 data_dir: '/Users/ridasaghir/Documents/Datasets/UrbanSound8K'
 num_classes: 10
 
+# MODEL ARCHITECTURE
+model_variant: "yamnet_mlp_3d"
+# options:
+# - yamnet_mlp_3d
+# - yamnet_mlp_2d
+# - yamnet_linear_2d
+# - yamnet_svm_2d
+
 # MODEL SETTINGS
 sample_rate: 16000
 target_duration: 4.0
