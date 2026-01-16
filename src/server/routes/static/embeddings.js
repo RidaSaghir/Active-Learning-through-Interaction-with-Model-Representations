@@ -213,18 +213,26 @@ window.applyEmbeddingData = applyEmbeddingData;
 
 // ----- Plot + interactions -----
 const hideCheckbox        = document.getElementById("hideLabeledCheckbox");
-const kInput              = document.getElementById("kInput");
-const updateKBtn          = document.getElementById("updateKBtn");
-const subsetSelect        = document.getElementById("subsetSelect");
-const highUncCheckbox     = document.getElementById("highUncCheckbox");
-const highDivCheckbox     = document.getElementById("highDivCheckbox");
-const highNovCheckbox     = document.getElementById("highNovCheckbox");
 const autoRotateCheckbox  = document.getElementById("autoRotateCheckbox");
-const preset1Btn          = document.getElementById("preset1");
-const preset2Btn          = document.getElementById("preset2");
-const preset3Btn          = document.getElementById("preset3");
 const gd                  = document.getElementById('plot');
 const hoverInfoEl         = document.getElementById('hoverInfo');
+const cueSelect    = document.getElementById("cueSelect");
+const cueSlider    = document.getElementById("cueSlider");
+const cuePctLabel  = document.getElementById("cuePctLabel");
+const K_FIXED = 20;
+
+
+cueSelect.addEventListener("change", updatePlot);
+
+cueSlider.addEventListener("input", () => {
+    cuePctLabel.textContent = Math.round(cueSlider.value * 100);
+    updatePlot();
+});
+
+if (cuePctLabel) {
+    cuePctLabel.textContent = Math.round(cueSlider.value * 100);
+}
+
 
 const layout = {
     scene: {
@@ -305,40 +313,20 @@ function computeHotspotIndices(k, values, baseVisibleIdxs) {
     return candidates.slice(0, kk).map(o => o.i);
 }
 
-function makeData(hideLabeledFlag, k, subsetMode, filters) {
+function makeData(hideLabeledFlag) {
     const baseVisibleIdxs = getBaseVisibleIndices(hideLabeledFlag);
 
-    const covIdxGlobal = computeHotspotIndices(k, coverageNorm, baseVisibleIdxs);
-    const denIdxGlobal = computeHotspotIndices(k, densityNorm, baseVisibleIdxs);
+    const covIdxGlobal = computeHotspotIndices(K_FIXED, coverageNorm, baseVisibleIdxs);
+    const denIdxGlobal = computeHotspotIndices(K_FIXED, densityNorm, baseVisibleIdxs);
     const covSet = new Set(covIdxGlobal);
     const denSet = new Set(denIdxGlobal);
+    let visibleIdxs = baseVisibleIdxs.slice();
 
-    let visibleIdxs;
-    if (subsetMode === "coverage") {
-        visibleIdxs = baseVisibleIdxs.filter(i => covSet.has(i));
-    } else if (subsetMode === "density") {
-        visibleIdxs = baseVisibleIdxs.filter(i => denSet.has(i));
-    } else if (subsetMode === "both") {
-        visibleIdxs = baseVisibleIdxs.filter(i => covSet.has(i) && denSet.has(i));
-    } else {
-        visibleIdxs = baseVisibleIdxs.slice(); // all
-    }
+    const cueName = cueSelect?.value || "none";
+    const q       = parseFloat(cueSlider?.value ?? 1);
 
-    if (filters.onlyHighUnc && Number.isFinite(UNC_HIGH)) {
-        visibleIdxs = visibleIdxs.filter(i =>
-            Number.isFinite(uncertaintyNorm[i]) && uncertaintyNorm[i] >= UNC_HIGH
-        );
-    }
-    if (filters.onlyHighDiv && Number.isFinite(DIV_HIGH)) {
-        visibleIdxs = visibleIdxs.filter(i =>
-            Number.isFinite(diversityNorm[i]) && diversityNorm[i] >= DIV_HIGH
-        );
-    }
-    if (filters.onlyHighNov && Number.isFinite(NOV_HIGH)) {
-        visibleIdxs = visibleIdxs.filter(i =>
-            Number.isFinite(noveltyNorm[i]) && noveltyNorm[i] >= NOV_HIGH
-        );
-    }
+    visibleIdxs = filterByCueQuantile(visibleIdxs, cueName, q);
+
 
     const traces = [];
     const classLabels = Object.keys(classToIndex);
@@ -395,7 +383,8 @@ function makeData(hideLabeledFlag, k, subsetMode, filters) {
                     symbol: pick(symbolAll, idxsThis),
                     line: {
                         color: lineColors,
-                        width: lineWidths
+                        width: lineWidths,
+                        opacity: 1.0
                     },
                     colorbar: {
                         title: 'Predicted class',
@@ -410,6 +399,38 @@ function makeData(hideLabeledFlag, k, subsetMode, filters) {
 
     return traces;
 }
+
+function filterByCueQuantile(idxs, cueName, q) {
+    if (cueName === "none" || q >= 1) return idxs;
+
+    const cueMap = {
+        uncertainty: uncertaintyNorm,
+        diversity:   diversityNorm,
+        novelty:    noveltyNorm,
+        density:    densityNorm,
+        coverage:   coverageNorm
+    };
+
+    const arr = cueMap[cueName];
+    if (!arr || !arr.length) return idxs;
+
+    const values = idxs
+        .map(i => arr[i])
+        .filter(v => Number.isFinite(v))
+        .sort((a, b) => a - b);
+
+    if (!values.length) return idxs;
+
+    // keep TOP q fraction
+    const cutoff = values[
+        Math.floor((1 - q) * (values.length - 1))
+    ];
+
+    return idxs.filter(i =>
+        Number.isFinite(arr[i]) && arr[i] >= cutoff
+    );
+}
+
 
 function attachPlotEvents() {
     if (eventsAttached) return;
@@ -492,15 +513,8 @@ function attachPlotEvents() {
 
 function updatePlot() {
     if (!gd) return;
-    const kVal       = parseInt(kInput.value) || 10;
     const hideFlag   = hideCheckbox.checked;
-    const subsetMode = subsetSelect.value;
-    const filters = {
-        onlyHighUnc: highUncCheckbox.checked,
-        onlyHighDiv: highDivCheckbox.checked,
-        onlyHighNov: highNovCheckbox.checked
-    };
-    const newData = makeData(hideFlag, kVal, subsetMode, filters);
+    const newData = makeData(hideFlag);
     Plotly.react(gd, newData, layout, {
         displaylogo: false,
         modeBarButtonsToRemove: [
@@ -518,11 +532,6 @@ function updatePlot() {
 
 // Controls
 hideCheckbox.addEventListener('change', updatePlot);
-updateKBtn.addEventListener('click', updatePlot);
-subsetSelect.addEventListener('change', updatePlot);
-highUncCheckbox.addEventListener('change', updatePlot);
-highDivCheckbox.addEventListener('change', updatePlot);
-highNovCheckbox.addEventListener('change', updatePlot);
 
 autoRotateCheckbox.addEventListener('change', () => {
     if (autoRotateCheckbox.checked) {
@@ -532,33 +541,7 @@ autoRotateCheckbox.addEventListener('change', () => {
     }
 });
 
-// Presets
-preset1Btn.addEventListener('click', () => {
-    kInput.value = 20;
-    subsetSelect.value = 'coverage';
-    highUncCheckbox.checked = true;
-    highDivCheckbox.checked = false;
-    highNovCheckbox.checked = false;
-    updatePlot();
-});
 
-preset2Btn.addEventListener('click', () => {
-    kInput.value = 50;
-    subsetSelect.value = 'all';
-    highUncCheckbox.checked = false;
-    highDivCheckbox.checked = true;
-    highNovCheckbox.checked = true;
-    updatePlot();
-});
-
-preset3Btn.addEventListener('click', () => {
-    kInput.value = 30;
-    subsetSelect.value = 'density';
-    highUncCheckbox.checked = false;
-    highDivCheckbox.checked = false;
-    highNovCheckbox.checked = false;
-    updatePlot();
-});
 
 // Initial render using server-injected data
 if (window.IMLVR_DATA) {

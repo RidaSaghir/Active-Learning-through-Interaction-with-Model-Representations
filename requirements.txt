@@ -8,4 +8,4 @@ pandas
 matplotlib
 pydantic
 PyYAML
-tensorflow_hub
+tensorflow-hub
