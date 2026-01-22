@@ -1,5 +1,6 @@
 latest_embeddings = None
 latest_3d_embeddings = None
+embedding_dim = None
 latest_iteration = None
 latest_predicted_labels = None
 latest_actual_labels = None

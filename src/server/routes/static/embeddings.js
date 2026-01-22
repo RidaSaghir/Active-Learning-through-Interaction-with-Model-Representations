@@ -10,8 +10,28 @@ const CLASS_MAP = {
     "siren": 8,
     "street_music": 9
 };
+const classColors = [
+    '#1f77b4', // air_conditioner
+    '#ff7f0e', // car_horn
+    '#2ca02c', // children_playing
+    '#d62728', // dog_bark
+    '#9467bd', // drilling
+    '#8c564b', // engine_idling
+    '#e377c2', // gun_shot
+    '#7f7f7f', // jackhammer
+    '#bcbd22', // siren
+    '#17becf'  // street_music
+];
 
 const CLASS_NAMES = Object.keys(CLASS_MAP);
+
+const VISUAL_CONFIG = {
+    color: true,        // predicted class
+    size: false,        // uncertainty
+    opacity: false,     // diversity
+    shape: false,       // novelty
+    border: false       // class coverage / density
+};
 
 
 // ----- Mutable globals -----
@@ -23,6 +43,9 @@ let cues             = {};
 let isLabeled        = [];
 let datasetIndices   = [];
 let trueCodes        = [];
+let audioPlayer = new Audio();
+audioPlayer.preload = "auto";
+
 
 // all the derived arrays we need
 let xAll = [], yAll = [], zAll = [];
@@ -110,7 +133,12 @@ function buildClassLegend() {
 
 // ----- Apply data snapshot (initial + later refreshes) -----
 function applyEmbeddingData(data) {
-    // 1) Raw data
+    // Determine embedding dimensionality (ONCE per update)
+    const embeddingDim =
+        data.embedding_dim ??
+        (data.embeddings?.[0]?.length ?? 3);
+
+    window.EMBEDDING_DIM = embeddingDim;
     embeddings      = data.embeddings || [];
     actualLabels    = data.actual_labels || [];
     predictedLabels = data.predicted_labels || [];
@@ -125,7 +153,9 @@ function applyEmbeddingData(data) {
     // 2) Basic coords
     xAll = embeddings.map(e => e[0]);
     yAll = embeddings.map(e => e[1]);
-    zAll = embeddings.map(e => e[2]);
+    zAll = (window.EMBEDDING_DIM === 3)
+        ? embeddings.map(e => e[2])
+        : embeddings.map(_ => 0);  // dummy z for 2D
 
     // 3) Cues
     uncertainty = cues["uncertainty"] || [];
@@ -154,12 +184,12 @@ function applyEmbeddingData(data) {
         `<b>${f}</b>` +
         //`<br>Actual: ${actualLabels[i]}` +
         `<br>Predicted: ${predictedLabels[i]}` +
-        `<br>is_labeled: ${isLabeled[i]}` +
-        `<br>uncertainty: ${uncertainty[i]?.toFixed(3)}` +
-        `<br>density: ${density[i]?.toFixed(3)}` +
-        `<br>diversity: ${diversity[i]?.toFixed(3)}` +
-        `<br>novelty: ${novelty[i]?.toFixed(3)}` +
-        `<br>coverage: ${coverage[i]?.toFixed(3)}`
+        `<br>is_labeled: ${isLabeled[i]}`
+        // `<br>uncertainty: ${uncertainty[i]?.toFixed(3)}` +
+        // `<br>density: ${density[i]?.toFixed(3)}` +
+        // `<br>diversity: ${diversity[i]?.toFixed(3)}` +
+        // `<br>novelty: ${novelty[i]?.toFixed(3)}` +
+        // `<br>coverage: ${coverage[i]?.toFixed(3)}`
     );
 
     // 8) Class color mapping
@@ -172,17 +202,13 @@ function applyEmbeddingData(data) {
     });
     colorIndexAll = predictedLabels.map(lbl => classToIndex[lbl]);
 
-    const classColors = [
-        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-    ];
-
     nClasses = Object.keys(classToIndex).length;
     colorScale = [];
     for (let i = 0; i < nClasses; i++) {
-        const t = (nClasses === 1) ? 0.5 : i / (nClasses - 1);
-        const color = classColors[i % classColors.length];
-        colorScale.push([t, color]);
+        const t0 = i / nClasses;
+        const t1 = (i + 1) / nClasses;
+        colorScale.push([t0, classColors[i]]);
+        colorScale.push([t1, classColors[i]]);
     }
 
     // 9) Marker size & symbol
@@ -203,8 +229,8 @@ function applyEmbeddingData(data) {
         });
     })();
 
-    // 10) Rebuild legend & redraw plot
-    buildClassLegend();
+    // ebuild legend & redraw plot
+    //buildClassLegend();
     updatePlot();
 }
 
@@ -232,19 +258,6 @@ cueSlider.addEventListener("input", () => {
 if (cuePctLabel) {
     cuePctLabel.textContent = Math.round(cueSlider.value * 100);
 }
-
-
-const layout = {
-    scene: {
-        aspectmode: "cube",
-        camera: {
-            eye: { x: 1.8, y: 1.8, z: 1.4 }
-        }
-    },
-    legend: {orientation: "h"},
-    margin: {l: 0, r: 0, t: 0, b: 0},
-    showlegend: false
-};
 
 let angle = 0;
 let isSpinning = false;
@@ -314,6 +327,8 @@ function computeHotspotIndices(k, values, baseVisibleIdxs) {
 }
 
 function makeData(hideLabeledFlag) {
+    const PLOT_TYPE =
+        (window.EMBEDDING_DIM === 3) ? 'scatter3d' : 'scatter';
     const baseVisibleIdxs = getBaseVisibleIndices(hideLabeledFlag);
 
     const covIdxGlobal = computeHotspotIndices(K_FIXED, coverageNorm, baseVisibleIdxs);
@@ -363,37 +378,57 @@ function makeData(hideLabeledFlag) {
 
             const originalIndices = idxsThis.slice();  // global indices
 
-            traces.push({
+            const trace = {
                 name: `${cls} (div bin ${bin})`,
                 x: pick(xAll, idxsThis),
                 y: pick(yAll, idxsThis),
-                z: pick(zAll, idxsThis),
                 mode: 'markers',
-                type: 'scatter3d',
+                type: PLOT_TYPE,
                 text: pick(hoverTextsAll, idxsThis),
                 hoverinfo: 'text',
                 customdata: originalIndices,
                 marker: {
-                    size: pick(sizeAll, idxsThis),
+                    size: VISUAL_CONFIG.size
+                        ? pick(sizeAll, idxsThis)
+                        : 8,
+
                     color: pick(colorIndexAll, idxsThis),
                     colorscale: colorScale,
                     cmin: 0,
-                    cmax: nClasses - 1,
-                    opacity: opacityPerBin[bin],
-                    symbol: pick(symbolAll, idxsThis),
-                    line: {
+                    cmax: nClasses,
+                    opacity: VISUAL_CONFIG.opacity
+                        ? opacityPerBin[bin]
+                        : 0.9,
+                    symbol: VISUAL_CONFIG.symbol
+                        ? pick(symbolAll, idxsThis)
+                        : "circle",
+                     line: VISUAL_CONFIG.border
+                        ? {
                         color: lineColors,
                         width: lineWidths,
                         opacity: 1.0
-                    },
+                        }
+                        : {
+                            width: 0                  // no borders
+                        },
                     colorbar: {
                         title: 'Predicted class',
-                        thickness: 15
+                     //   thickness: 15
+                        tickmode: "array",
+                        tickvals: [...Array(nClasses).keys()].map(i => i + 0.5),
+                        ticktext: Object.keys(classToIndex),
+                        len: 0.6
                     }
                 },
                 showscale: (clsIdx === 0 && bin === 0),
-                showlegend: false
-            });
+                //showlegend: false
+            };
+            if (window.EMBEDDING_DIM === 3) {
+                trace.z = pick(zAll, idxsThis);
+            }
+            traces.push(trace);
+
+
         }
     }
 
@@ -436,86 +471,60 @@ function attachPlotEvents() {
     if (eventsAttached) return;
     eventsAttached = true;
 
-    // Hover feedback
-    gd.on('plotly_hover', evt => {
+    // OPTIONAL: show hover info below plot (Plotly hover still works)
+    gd.on('plotly_hover', (evt) => {
+        if (!evt.points || evt.points.length === 0) return;
         const pt = evt.points[0];
-        const globalIdx = pt.customdata;
-        if (globalIdx == null) {
-            hoverInfoEl.innerHTML = "";
-            return;
-        }
+        const i = pt.customdata;
+        if (i == null) return;
+
         hoverInfoEl.innerHTML =
-            `Selected: <strong>${filenames[globalIdx]}</strong>` +
-            ` · Pred: ${predictedLabels[globalIdx]}` +
-            ` · Unc: ${uncertainty[globalIdx]?.toFixed(2)}` +
-            ` · Div: ${diversity[globalIdx]?.toFixed(2)}` +
-            ` · Nov: ${novelty[globalIdx]?.toFixed(2)}`;
+            `Selected: <strong>${filenames[i]}</strong>` +
+            ` · Pred: ${predictedLabels[i]}` ;
+            // ` · Unc: ${uncertainty[i]?.toFixed(2)}` +
+            // ` · Div: ${diversity[i]?.toFixed(2)}` +
+            // ` · Nov: ${novelty[i]?.toFixed(2)}`;
     });
 
     gd.on('plotly_unhover', () => {
         hoverInfoEl.innerHTML = "";
     });
 
-    let lastUserName = null;
+    // CLICK → play audio + label
     gd.on('plotly_click', async (evt) => {
         if (window.isRetraining) {
             alert("The model is currently retraining. Please wait.");
             return;
         }
 
-        const pt = evt.points[0];
-        const globalIdx = pt.customdata;
+        if (!evt.points || evt.points.length !== 1) return;
+
+        const globalIdx = evt.points[0].customdata;
+        if (globalIdx == null) return;
+
         const filename = filenames[globalIdx];
-        const dsIdx = datasetIndices[globalIdx];
-        const predStr = predictedLabels[globalIdx];
 
         try {
-            // Play audio
-            const audio = new Audio(`/audio/${filename}`);
+            const audio = new Audio(`/audio/${filename}?t=${Date.now()}`)
             await audio.play();
-
 
             const selectedClass = promptForLabel();
             if (!selectedClass) return;
 
-            const classCode = CLASS_MAP[selectedClass];
-
-            if (!window.lastUserName) {
-                const name = prompt("Annotator name:", "user1");
-                if (!name) return;
-                window.lastUserName = name;
-            }
-            const res = await fetch("/human_annotations", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    filenames: [filename],
-                    indices: [dsIdx],
-                    labels: [classCode],
-                    user: window.lastUserName
-                })
-            });
-
-            const data = await res.json();
-            console.log("Annotation stored:", data);
-            hoverInfoEl.innerHTML =
-                `Annotated: <strong>${filename}</strong>` +
-                ` · label=${selectedClass}` +
-                ` · code=${classCode}` +
-                ` · user=${window.lastUserName}`;
         } catch (err) {
-            console.error("Audio failed to play", err);
+            console.error("Audio playback failed:", err);
             alert(`Failed to play audio for: ${filename}`);
         }
-    });
 
+    });
 }
+
 
 function updatePlot() {
     if (!gd) return;
     const hideFlag   = hideCheckbox.checked;
     const newData = makeData(hideFlag);
-    Plotly.react(gd, newData, layout, {
+    Plotly.react(gd, newData, getLayout(), {
         displaylogo: false,
         modeBarButtonsToRemove: [
             'toImage', 'select2d', 'lasso2d',
@@ -529,6 +538,89 @@ function updatePlot() {
         }
     });
 }
+
+function getLayout() {
+    if (window.EMBEDDING_DIM === 3) {
+        return {
+            scene: {
+                aspectmode: "cube",
+                camera: { eye: { x: 1.8, y: 1.8, z: 1.4 } }
+            },
+            margin: {l: 0, r: 0, t: 0, b: 0},
+            showlegend: false
+        };
+    } else {
+        return {
+            hovermode: "closest",
+            clickmode: "event",
+            hoverdistance:1,
+            spikedistance:-1,
+            xaxis: {
+                zeroline: false,
+                showspikes: false
+            },
+            yaxis: {
+                zeroline: false,
+                showspikes: false
+            },
+            margin: {l: 0, r: 0, t: 0, b: 0},
+            showlegend: false
+        };
+
+    }
+}
+
+function buildMarker(idxsThis, bin) {
+    const marker = {
+        color: pick(colorIndexAll, idxsThis),
+        colorscale: colorScale,
+        cmin: 0,
+        cmax: nClasses - 1
+    };
+
+    if (VISUAL_CONFIG.size) {
+        marker.size = pick(sizeAll, idxsThis);
+    } else {
+        marker.size = 8; // fixed size
+    }
+
+    if (VISUAL_CONFIG.opacity) {
+        marker.opacity = opacityPerBin[bin];
+    } else {
+        marker.opacity = 0.9;
+    }
+
+    if (VISUAL_CONFIG.shape) {
+        marker.symbol = pick(symbolAll, idxsThis);
+    } else {
+        marker.symbol = "circle";
+    }
+
+    if (VISUAL_CONFIG.border) {
+        marker.line = {
+            color: pickBorderColors(idxsThis),
+            width: pickBorderWidths(idxsThis),
+            opacity: 1.0
+        };
+    }
+
+    return marker;
+}
+
+function pickBorderColors(idxs) {
+    return idxs.map(i =>
+        coverageNorm[i] > UNC_HIGH ? "red" :
+        densityNorm[i] > UNC_HIGH  ? "black" :
+        "rgba(0,0,0,0)"
+    );
+}
+
+function pickBorderWidths(idxs) {
+    return idxs.map(i =>
+        coverageNorm[i] > UNC_HIGH || densityNorm[i] > UNC_HIGH ? 2 : 0
+    );
+}
+
 
 // Controls
 hideCheckbox.addEventListener('change', updatePlot);

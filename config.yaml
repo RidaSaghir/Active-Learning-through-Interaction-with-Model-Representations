@@ -3,12 +3,13 @@ data_dir: '/Users/ridasaghir/Documents/Datasets/UrbanSound8K'
 num_classes: 10
 
 # MODEL ARCHITECTURE
-model_variant: "yamnet_mlp_3d"
+model_variant: "yamnet_mlp_2d"
 # options:
 # - yamnet_mlp_3d
 # - yamnet_mlp_2d
 # - yamnet_linear_2d
 # - yamnet_svm_2d
+# - yamnet_logreg_2d
 
 # MODEL SETTINGS
 sample_rate: 16000
@@ -20,20 +21,22 @@ check_point : "model_checkpoint.pth"
 human_annotations: "human_annotations.json"
 learning_rate : 1e-3
 batch_size : 32
+seed: 0
 
 # EXPERIMENT SETTINGS
-epochs_before_query : 1
-accuracy_target: 0.80
-held_out_fold : 10
+epochs_before_query : 5
+accuracy_target: 1
+held_out_fold : 3
 csv_filename: "ui_testing"
 png_filename: "ui_testing"
 labels_per_round: 10
 produce_annotation_suggestions: False
 annotation_suggestions_using: "coverage"
 num_annotation_suggestions : 10
+max_per_class_per_fold: 40 # in total training dataset
 
 # NON-COLD START SETTINGS
-initial_labels_per_class_count : 10 # For NON-cold start mode
+initial_labels_per_class_count : 120 # For NON-cold start mode in LABELED set
 
 # COLD START SETTINGS
 cold_start_with_user: True

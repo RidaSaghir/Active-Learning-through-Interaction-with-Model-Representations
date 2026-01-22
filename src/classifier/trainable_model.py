@@ -1,7 +1,13 @@
 import torch
+import numpy as np
 import torch.nn as nn
+import random
 import torch.nn.functional as F
-from config import LEARNING_RATE
+from config import LEARNING_RATE, SEED
+
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
 
 class TrainableModel(nn.Module):
     def __init__(self, projector, classifier, lr):
@@ -18,7 +24,6 @@ class TrainableModel(nn.Module):
         z = self.projector(x)
         logits = self.classifier(z)
         return logits, z
-
 
     def train_step(self, x, y):
         self.train()

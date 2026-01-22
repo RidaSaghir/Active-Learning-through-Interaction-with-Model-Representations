@@ -9,9 +9,8 @@ import time
 from dataset.loader import UrbanSoundLoader
 from dataset.labeled_manager import LabeledSetManager
 from embeddings.pretrained_model import YAMNetEmbedder
-from classifier.trainable_model import TrainableModel
 from classifier.model_factory import build_model
-from active_learning.active_learning_loop import UncertaintySampler, ActiveLearningLoop
+from active_learning.active_learning_loop import Sampler, ActiveLearningLoop
 from server.communicator import RestCommunicator
 from server.app import create_app
 from server import state
@@ -41,7 +40,7 @@ def run_trainer():
         input_dim=1024,
         num_classes=10
     )
-    sampler = UncertaintySampler()
+    sampler = Sampler()
     communicator = RestCommunicator()
     log.info("Startup: created components")
 
@@ -51,14 +50,16 @@ def run_trainer():
     total_iterations = 0
 
     if os.path.exists(CHECKPOINT):
-        checkpoint = torch.load(CHECKPOINT)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        model.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        total_iterations = checkpoint.get('total_iterations', 0)
-        labeled_indices = checkpoint.get('labeled_indices', [])
-        unlabeled_indices = checkpoint.get('unlabeled_indices', [])
+        model.load(CHECKPOINT)
+        meta = torch.load(CHECKPOINT + ".meta")
+        total_iterations = meta.get("total_iterations", 0)
+        labeled_indices = meta.get("labeled_indices", [])
+        unlabeled_indices = meta.get("unlabeled_indices", [])
         resume = True
-        log.info(f"Loaded checkpoint @iter={total_iterations} | labeled={len(labeled_indices)} | unlabeled={len(unlabeled_indices)}")
+        log.info(
+            f"Resumed from checkpoint | iter={total_iterations} "
+            f"| labeled={len(labeled_indices)} | unlabeled={len(unlabeled_indices)}"
+        )
     else:
         log.info("No checkpoint found; starting fresh")
 
@@ -154,13 +155,16 @@ def run_trainer():
             macro_f1=macro_f1,
             micro_f1=micro_f1
         )
+        model.save(CHECKPOINT)
+
         torch.save({
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': model.optimizer.state_dict(),
-            'total_iterations': total_iterations,
-            'labeled_indices': labeled_manager.labeled_indices,
-            'unlabeled_indices': labeled_manager.unlabeled_indices,
-        }, CHECKPOINT)
+            "total_iterations": total_iterations,
+            "labeled_indices": labeled_manager.labeled_indices,
+            "unlabeled_indices": labeled_manager.unlabeled_indices,
+        }, CHECKPOINT + ".meta")
+
+        log.info("Checkpoint saved")
+
         log.info("Checkpoint saved")
 
         if acc_global >= ACCURACY_TARGET: sys.exit(0)

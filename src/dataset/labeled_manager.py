@@ -1,3 +1,4 @@
+import numpy as np
 from torch.utils.data import DataLoader, Subset
 from collections import Counter
 
@@ -84,3 +85,11 @@ class LabeledSetManager:
             label = class_code_to_label[code] if class_code_to_label is not None else str(code)
             result[label] = int(cnt)
         return result
+
+    def get_all_labeled_numpy(self):
+        X, y = [], []
+        for i in self.labeled_indices:
+            emb, label, *_ = self.dataset[i]
+            X.append(emb.numpy())
+            y.append(int(label))
+        return np.stack(X), np.array(y)

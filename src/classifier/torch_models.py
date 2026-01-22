@@ -2,8 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import random
 from .base_model import BaseModel
-from config import LEARNING_RATE
+from config import LEARNING_RATE, SEED
+
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+
 
 class TorchModel(BaseModel, nn.Module):
     def __init__(self, projector, classifier, num_classes):
@@ -17,6 +23,10 @@ class TorchModel(BaseModel, nn.Module):
         z = self.projector(x)
         logits = self.classifier(z)
         return logits, z
+
+    @property
+    def supports_batch_training(self):
+        return True
 
     def train_step(self, x, y):
         self.train()
@@ -41,6 +51,24 @@ class TorchModel(BaseModel, nn.Module):
         with torch.no_grad():
             z = self.projector(x)
             return z.cpu().numpy()
+
+    def eval(self):
+        super().eval()
+        return self
+
+    def save(self, path):
+        torch.save({
+            "model_state": self.state_dict(),
+            "optimizer_state": self.optimizer.state_dict(),
+        }, path)
+
+    def load(self, path):
+        ckpt = torch.load(path, map_location="cpu")
+        self.load_state_dict(ckpt["model_state"])
+        self.optimizer.load_state_dict(ckpt["optimizer_state"])
+
+    def project_for_view(self, X_1024):
+        return self.projector(X_1024).detach().cpu().numpy()
 
 class MLPProjector(nn.Module):
     def __init__(self, in_dim, out_dim):

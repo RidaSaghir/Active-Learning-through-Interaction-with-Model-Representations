@@ -31,4 +31,5 @@ PRODUCE_ANNOTATION_SUGGESTIONS = cfg.get("produce_annotation_suggestions")
 ANNOTATION_SUGGESTIONS_USING = cfg.get("annotation_suggestions_using")
 COLD_START_WITH_USER = cfg.get("cold_start_with_user")
 MODEL_VARIANT = cfg.get("model_variant")
-
+MAX_PER_CLASS_PER_FOLD = cfg.get("max_per_class_per_fold")
+SEED = cfg.get("seed")

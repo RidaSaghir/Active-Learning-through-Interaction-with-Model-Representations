@@ -30,13 +30,13 @@ def build_model(variant, input_dim=1024, num_classes=10):
 
     if variant == "yamnet_svm_2d":
         return SklearnModel(
-            classifier=SVC(kernel="linear", probability=True),
+            classifier=SVC(kernel="linear", probability=True, max_iter=5000),
             projector=LinearProjector(input_dim, 2)
         )
 
     if variant == "yamnet_logreg_2d":
         return SklearnModel(
-            classifier=LogisticRegression(max_iter=1000),
+            classifier=LogisticRegression(max_iter=10000),
             projector=LinearProjector(input_dim, 2)
         )
 

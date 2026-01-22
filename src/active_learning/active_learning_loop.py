@@ -2,14 +2,17 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import itertools
-from config import NUM_ANNOTATION_SUGGESTIONS, ANNOTATION_SUGGESTIONS_USING, PRODUCE_ANNOTATION_SUGGESTIONS
+import random
+from config import NUM_ANNOTATION_SUGGESTIONS, ANNOTATION_SUGGESTIONS_USING, PRODUCE_ANNOTATION_SUGGESTIONS, SEED
 from utils.misc import load_annotations, diff_annotations
 from utils.logging_utils import get_logger, log_duration
 from active_learning.cue_computer import compute_cues_from_view
 
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
 
-
-class UncertaintySampler:
+class Sampler:
     def select_from_cues(
         self,
         cues: dict,
@@ -59,17 +62,7 @@ class ActiveLearningLoop:
         self.log = get_logger("imlvr.active_learning")
 
     def gather_full_dataset_view(self, manager):
-        """
-        Returns:
-            emb_np:        [N, d] float32
-            actual_labels: list length N (original labels if available)
-            predicted:     list length N (string labels)
-            filenames:     list length N
-            indices:       list length N (dataset indices)
-            prob_np:       [N, C] float32  model probabilities
-            is_labeled:    np.bool_ [N]     True for labeled pool
-            true_codes:    list length N
-        """
+
         self.log.info("Gather full dataset view (for frontend)")
 
         embeddings = []
@@ -86,10 +79,10 @@ class ActiveLearningLoop:
         # ---- LABELED SAMPLES ----
         with torch.no_grad():
             for embedding_tensor, label_tensor, original_label, filename, index in manager.iter_labeled():
-                x = embedding_tensor.unsqueeze(0)  # [1, D]
+                x = embedding_tensor.unsqueeze(0)
+                p = self.model.predict_proba(x)[0]
+                z = self.model.project_for_view(x)[0]
 
-                z = self.model.project(x)[0]  # numpy [d]
-                p = self.model.predict_proba(x)[0]  # numpy [C]
                 pred_code = int(p.argmax())
 
                 embeddings.append(z)
@@ -103,10 +96,9 @@ class ActiveLearningLoop:
 
             # ---- UNLABELED SAMPLES ----
             for embedding_tensor, label_tensor, original_label, filename, index in manager.iter_unlabeled():
-                x = embedding_tensor.unsqueeze(0)  # [1, D]
-
-                z = self.model.project(x)[0]  # numpy [d]
-                p = self.model.predict_proba(x)[0]  # numpy [C]
+                x = embedding_tensor.unsqueeze(0)
+                p = self.model.predict_proba(x)[0]
+                z = self.model.project_for_view(x)[0]
                 pred_code = int(p.argmax())
 
                 embeddings.append(z)
@@ -187,10 +179,20 @@ class ActiveLearningLoop:
         global_iteration = start_iteration
         train_loss, train_accuracy = 0.0, 0.0
 
-        for local_iteration in range(num_iters):
-            x, y, _, filenames, idx = self.manager.next_batch()
-            train_loss, train_accuracy = self.model.train_step(x, y)
-            self.log.info(f"iteration={global_iteration} | batch={len(y)} | loss={train_loss:.4f} | acc={train_accuracy:.3f}")
+        if self.model.supports_batch_training:
+            for _ in range(num_iters):
+                x, y, _, _, _ = self.manager.next_batch()
+                train_loss, train_accuracy = self.model.train_step(x, y)
+                self.log.info(f"iteration={global_iteration} | batch={len(y)} | train loss={train_loss:.4f} | train acc={train_accuracy:.3f}")
+                global_iteration += 1
+
+        else:
+            # SVM / Logistic Regression
+            X_labeled, y_labeled = self.manager.get_all_labeled_numpy()
+            self.model.fit_full(X_labeled, y_labeled)
+            self.log.info(
+                f"iter={global_iteration} | full-dataset fit | n={len(y_labeled)}"
+            )
             global_iteration += 1
 
         emb_np, actual_labels, predicted_labels, filenames, indices, prob_np, is_labeled, true_codes = self.gather_full_dataset_view(

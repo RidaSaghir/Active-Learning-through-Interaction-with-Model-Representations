@@ -9,9 +9,11 @@ log = get_logger("imlvr.api_embeddings")
 @router.post("/latest_embeddings")
 def post_latest_embeddings(payload: EmbeddingPayload):
     arr = np.array(payload.embeddings)
-    if arr.ndim != 2 or arr.shape[1] != 3:   # expect 3D now
-        return {"error": f"Expected (N,3) embeddings, got {arr.shape}"}
+    if arr.ndim != 2 or arr.shape[1] not in (2, 3):
+        return {"error": f"Expected (N,2) or (N,3) embeddings, got {arr.shape}"}
+
     state.latest_iteration = payload.iteration
+    state.embedding_dim = arr.shape[1]
     state.latest_embeddings = arr
     state.latest_actual_labels = payload.actual_labels
     state.latest_predicted_labels = payload.predicted_labels
@@ -36,6 +38,7 @@ def get_latest_embeddings():
     return {
         "iteration": state.latest_iteration,
         "shape": list(state.latest_embeddings.shape),
+        "embedding_dim": state.embedding_dim,
         "embeddings": state.latest_embeddings.tolist(),
         "actual_labels": state.latest_actual_labels,
         "predicted_labels": state.latest_predicted_labels,

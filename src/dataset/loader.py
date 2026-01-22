@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 import torch
 from torch.utils.data import Dataset
-from config import INITIAL_LABELS_PER_CLASS_COUNT, DATA_DIR, SAMPLE_RATE, TARGET_DURATION, EMBEDDING_DIM
+from config import INITIAL_LABELS_PER_CLASS_COUNT, DATA_DIR, SAMPLE_RATE, TARGET_DURATION, EMBEDDING_DIM, MAX_PER_CLASS_PER_FOLD
 from dataset.cache_dataset import UrbanSoundCachedEmbeddingDataset
 from utils.logging_utils import get_logger, log_duration
 log = get_logger("loader")
@@ -99,6 +99,23 @@ class UrbanSoundLoader:
         log.info(f"Cache saved | {key}")
         return np.load(emb_path, mmap_mode="r")
 
+    def _cap_per_class_per_fold(self, df, max_per_class_per_fold):
+        if max_per_class_per_fold is None:
+            return df
+
+        log.info(f"Capping data | max_per_class_per_fold={max_per_class_per_fold}")
+
+        return (
+            df.groupby(["fold", "class_code"], group_keys=False)
+            .apply(
+                lambda x: x.sample(
+                    n=min(len(x), max_per_class_per_fold),
+                    random_state=42
+                )
+            )
+            .reset_index(drop=True)
+        )
+
     def get_labeled_unlabeled_datasets(self, held_out_fold):
         df = pd.read_csv(self.metadata_path)
         df['class_code'] = df['class'].astype('category').cat.codes
@@ -107,8 +124,35 @@ class UrbanSoundLoader:
         train_df = df[df['fold'] != held_out_fold]
         test_df = df[df['fold'] == held_out_fold]
 
+        if MAX_PER_CLASS_PER_FOLD is not None:
+            log.info(
+                f"Capping training data | max_per_class_total={MAX_PER_CLASS_PER_FOLD}"
+            )
+            train_df = (
+                train_df
+                .groupby(["fold", "class_code"], group_keys=False)
+                .apply(
+                    lambda x: x.sample(
+                        n=min(len(x), MAX_PER_CLASS_PER_FOLD),
+                        random_state=42
+                    )
+                )
+                .reset_index(drop=True)
+            )
+
+        log.info(f"DEBUG | train_df size after cap = {len(train_df)}")
+
         # Taking PER_CLASS_COUNT samples from every class for training
-        labeled_df = train_df.groupby('class_code', group_keys=False).apply(lambda x: x.sample(n=INITIAL_LABELS_PER_CLASS_COUNT, random_state=42))
+        labeled_df = (
+            train_df
+            .groupby("class_code", group_keys=False)
+            .apply(
+                lambda x: x.sample(
+                    n=min(len(x), INITIAL_LABELS_PER_CLASS_COUNT),
+                    random_state=42
+                )
+            )
+        )
         unlabeled_df = train_df.drop(labeled_df.index)
         combined_df = pd.concat([labeled_df, unlabeled_df]).reset_index(drop=True)
         labeled_indices = list(range(len(labeled_df)))
@@ -128,8 +172,6 @@ class UrbanSoundLoader:
         # compute or load cached embeddings once
         train_embs = self._compute_or_load_embeddings(train_paths, split_key=f"train_ex_fold{held_out_fold}")
         test_embs = self._compute_or_load_embeddings(test_paths, split_key=f"test_fold{held_out_fold}")
-
-        #test_dataset = UrbanSoundEmbeddingDataset(test_paths, test_labels, test_original_labels, self.embedder)
 
         full_train_dataset = UrbanSoundCachedEmbeddingDataset(train_embs, train_labels, train_original_labels,
                                                               train_filenames)
