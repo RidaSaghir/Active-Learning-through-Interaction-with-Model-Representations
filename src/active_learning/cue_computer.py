@@ -58,6 +58,7 @@ def compute_cues_from_view(
     is_labeled_np: np.ndarray,
     labeled_counts: dict,
     k_density: int = 15,
+    random_seed: int | None = None,
 ):
 
     # Torch-ify inputs
@@ -73,28 +74,41 @@ def compute_cues_from_view(
 
     # Uncertainty
     uncertainty = entropy(P)                  # [N]
+
     # Density
     rho_u = knn_density(Z_u, k=k_density)     # [N_u]
     density = torch.zeros(N)
     density[mask_u] = rho_u  # 0 for labeled
+
     # Novelty
     novelty_u = novelty_from_density(rho_u)  # [N_u]
     novelty = torch.zeros(N)
     novelty[mask_u] = novelty_u
+
     # Diversity-to-labeled: d(i) = min dist to any labeled
     d_u = diversity_to_labeled(Z_u, Z_l)  # [N_u]
     diversity = torch.zeros(N)
     diversity[mask_u] = d_u
+
     # Coverage pressure: only defined for unlabeled
     cov_u = coverage_pressure(P_u, labeled_counts)  # [N_u]
     coverage = torch.zeros(N)
     coverage[mask_u] = cov_u
+
+    # Random
+    rng = torch.Generator()
+    if random_seed is not None:
+        rng.manual_seed(random_seed)
+    random_scores = torch.zeros(N)
+    random_scores[mask_u] = torch.rand(mask_u.sum(), generator=rng)
+
     return {
         "uncertainty": uncertainty.numpy(),
         "density": density.numpy(),
         "novelty": novelty.numpy(),
         "diversity": diversity.numpy(),
         "coverage": coverage.numpy(),
+        "random": random_scores.numpy(),
     }
 
 
