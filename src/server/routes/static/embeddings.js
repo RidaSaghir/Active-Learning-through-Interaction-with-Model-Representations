@@ -1,3 +1,28 @@
+console.log("[BOOT] embeddings.js loaded");
+
+const cueThresholds = {
+  uncertainty: 0,
+  diversity: 0,
+  novelty: 0,
+  density: 0,
+  coverage: 0
+};
+window.cueThresholds = cueThresholds;
+
+// Cached percentile cutoffs (REUSED during filtering)
+let cueCutoffs = {
+  uncertainty: -Infinity,
+  diversity: -Infinity,
+  novelty: -Infinity,
+  density: -Infinity,
+  coverage: -Infinity
+};
+
+// Bind once (avoid object creation in loops)
+let cueArrays = {};
+
+
+
 const CLASS_MAP = {
     "air_conditioner": 0,
     "car_horn": 1,
@@ -45,6 +70,11 @@ let datasetIndices   = [];
 let trueCodes        = [];
 let audioPlayer = new Audio();
 audioPlayer.preload = "auto";
+let globalXRange = null;
+let globalYRange = null;
+let globalZRange = null;
+let eventsAttached = false;
+let isAudioLoading = false;
 
 
 // all the derived arrays we need
@@ -151,11 +181,35 @@ function applyEmbeddingData(data) {
     isLabeled = isLabeledRaw.map(v => (v === true || v === "true" || v === 1));
 
     // 2) Basic coords
+// 2) Basic coords
     xAll = embeddings.map(e => e[0]);
     yAll = embeddings.map(e => e[1]);
     zAll = (window.EMBEDDING_DIM === 3)
         ? embeddings.map(e => e[2])
         : embeddings.map(_ => 0);  // dummy z for 2D
+
+    // 🔒 Fix global ranges once so filtering doesn't change them
+    if (xAll.length) {
+      const xMin = Math.min(...xAll), xMax = Math.max(...xAll);
+      const yMin = Math.min(...yAll), yMax = Math.max(...yAll);
+      const zMin = Math.min(...zAll), zMax = Math.max(...zAll);
+
+      // optional small padding
+      const pad = 0.05;
+      globalXRange = [
+        xMin - pad * (xMax - xMin),
+        xMax + pad * (xMax - xMin)
+      ];
+      globalYRange = [
+        yMin - pad * (yMax - yMin),
+        yMax + pad * (yMax - yMin)
+      ];
+      globalZRange = [
+        zMin - pad * (zMax - zMin || 1),
+        zMax + pad * (zMax - zMin || 1)
+      ];
+    }
+
 
     // 3) Cues
     uncertainty = cues["uncertainty"] || [];
@@ -232,6 +286,17 @@ function applyEmbeddingData(data) {
     // ebuild legend & redraw plot
     //buildClassLegend();
     updatePlot();
+    cueArrays = {
+      uncertainty: uncertaintyNorm,
+      diversity: diversityNorm,
+      novelty: noveltyNorm,
+      density: densityNorm,
+      coverage: coverageNorm
+    };
+
+    // Initialize cutoffs once
+    recomputeCueCutoffs();
+
 }
 
 // expose to other scripts (metrics.js)
@@ -241,28 +306,14 @@ window.applyEmbeddingData = applyEmbeddingData;
 const hideCheckbox        = document.getElementById("hideLabeledCheckbox");
 const autoRotateCheckbox  = document.getElementById("autoRotateCheckbox");
 const gd                  = document.getElementById('plot');
+console.log("[BOOT] gd id:", gd?.id, "node:", gd);
 const hoverInfoEl         = document.getElementById('hoverInfo');
-const cueSelect    = document.getElementById("cueSelect");
-const cueSlider    = document.getElementById("cueSlider");
-const cuePctLabel  = document.getElementById("cuePctLabel");
 const K_FIXED = 20;
 
-
-cueSelect.addEventListener("change", updatePlot);
-
-cueSlider.addEventListener("input", () => {
-    cuePctLabel.textContent = Math.round(cueSlider.value * 100);
-    updatePlot();
-});
-
-if (cuePctLabel) {
-    cuePctLabel.textContent = Math.round(cueSlider.value * 100);
-}
 
 let angle = 0;
 let isSpinning = false;
 let spinFrameId = null;
-let eventsAttached = false;
 
 function promptForLabel() {
     const options = CLASS_NAMES
@@ -335,12 +386,11 @@ function makeData(hideLabeledFlag) {
     const denIdxGlobal = computeHotspotIndices(K_FIXED, densityNorm, baseVisibleIdxs);
     const covSet = new Set(covIdxGlobal);
     const denSet = new Set(denIdxGlobal);
-    let visibleIdxs = baseVisibleIdxs.slice();
+    let visibleIdxs = baseVisibleIdxs.filter(i => passesAllActiveCues(i));
 
-    const cueName = cueSelect?.value || "none";
-    const q       = parseFloat(cueSlider?.value ?? 1);
-
-    visibleIdxs = filterByCueQuantile(visibleIdxs, cueName, q);
+    if (!visibleIdxs.length) {
+        console.warn("No samples pass active cue filters", cueThresholds);
+    }
 
 
     const traces = [];
@@ -435,44 +485,20 @@ function makeData(hideLabeledFlag) {
     return traces;
 }
 
-function filterByCueQuantile(idxs, cueName, q) {
-    if (cueName === "none" || q >= 1) return idxs;
-
-    const cueMap = {
-        uncertainty: uncertaintyNorm,
-        diversity:   diversityNorm,
-        novelty:    noveltyNorm,
-        density:    densityNorm,
-        coverage:   coverageNorm
-    };
-
-    const arr = cueMap[cueName];
-    if (!arr || !arr.length) return idxs;
-
-    const values = idxs
-        .map(i => arr[i])
-        .filter(v => Number.isFinite(v))
-        .sort((a, b) => a - b);
-
-    if (!values.length) return idxs;
-
-    // keep TOP q fraction
-    const cutoff = values[
-        Math.floor((1 - q) * (values.length - 1))
-    ];
-
-    return idxs.filter(i =>
-        Number.isFinite(arr[i]) && arr[i] >= cutoff
-    );
-}
 
 
 function attachPlotEvents() {
+    if (!gd) {
+        console.warn("[PLOT] gd is null - cannot attach events");
+        return;
+    }
     if (eventsAttached) return;
     eventsAttached = true;
 
+    console.log("[PLOT] attachPlotEvents called");
     // OPTIONAL: show hover info below plot (Plotly hover still works)
     gd.on('plotly_hover', (evt) => {
+        console.log("[HOVER] Hover event", evt)
         if (!evt.points || evt.points.length === 0) return;
         const pt = evt.points[0];
         const i = pt.customdata;
@@ -490,37 +516,64 @@ function attachPlotEvents() {
         hoverInfoEl.innerHTML = "";
     });
 
-    // CLICK → play audio + label
+
+    //CLICK → play audio + label
     gd.on('plotly_click', async (evt) => {
-        if (window.isRetraining) {
-            alert("The model is currently retraining. Please wait.");
+        console.log("[CLICK] event fired", evt)
+        if (window.isRetraining || isAudioLoading) {
+            console.log("[CLICK] blocked: retraining")
+            alert("The model is currently retraining or an audio is processing. Please wait.");
             return;
         }
 
-        if (!evt.points || evt.points.length !== 1) return;
+        if (!evt.points || evt.points.length === 0) {
+            console.log("[CLICK] no point selected (background click)");
+            return;
+            }
+
+        console.log("[CLICK] points length =", evt.points.length);
 
         const globalIdx = evt.points[0].customdata;
+        console.log("[CLICK] globalIdx =", globalIdx)
         if (globalIdx == null) return;
 
         const filename = filenames[globalIdx];
+        isAudioLoading = true
+        console.log("[CLICK] filename =", filename);
+        if (!filename) return;
 
         try {
-            const audio = new Audio(`/audio/${filename}?t=${Date.now()}`)
-            await audio.play();
+            audioPlayer.pause();
+            //audioPlayer.currentTime = 0;
+            audioPlayer.src = `/audio/${filename}?t=${Date.now()}`;
+            audioPlayer.load()
+            console.log("[AUDIO] src =", audioPlayer.src);
 
-            const selectedClass = promptForLabel();
-            if (!selectedClass) return;
+            await audioPlayer.play();
+            console.log("[AUDIO] play() resolved");
+
+            setTimeout(() => {
+                const selectedClass = promptForLabel();
+                if (selectedClass) {
+                // Handle your labeling logic here (e.g., send to server)
+                    console.log(`Labeled ${filename} as ${selectedClass}`);
+                }
+                isAudioLoading = false;
+            }, 100);
 
         } catch (err) {
             console.error("Audio playback failed:", err);
             alert(`Failed to play audio for: ${filename}`);
+            isAudioLoading = false
         }
 
     });
+    console.log("[PLOT] plotly_click/hover handlers attached");
 }
 
 
 function updatePlot() {
+    console.log("[PLOT] updatePlot called");
     if (!gd) return;
     const hideFlag   = hideCheckbox.checked;
     const newData = makeData(hideFlag);
@@ -533,9 +586,12 @@ function updatePlot() {
         ]
     }).then(() => {
         attachPlotEvents();
-        if (autoRotateCheckbox.checked) {
+        if (window.EMBEDDING_DIM === 3 && autoRotateCheckbox.checked) {
             startSpin();
+        } else {
+            stopSpin();
         }
+
     });
 }
 
@@ -544,7 +600,10 @@ function getLayout() {
         return {
             scene: {
                 aspectmode: "cube",
-                camera: { eye: { x: 1.8, y: 1.8, z: 1.4 } }
+                camera: { eye: { x: 1.8, y: 1.8, z: 1.4 } },
+                xaxis: globalXRange ? { range: globalXRange } : {},
+                yaxis: globalYRange ? { range: globalYRange } : {},
+                zaxis: globalZRange ? { range: globalZRange } : {}
             },
             margin: {l: 0, r: 0, t: 0, b: 0},
             showlegend: false
@@ -552,16 +611,19 @@ function getLayout() {
     } else {
         return {
             hovermode: "closest",
+            dragmode: false,
             clickmode: "event",
             hoverdistance:1,
             spikedistance:-1,
             xaxis: {
                 zeroline: false,
-                showspikes: false
+                showspikes: false,
+                range: globalXRange || undefined
             },
             yaxis: {
                 zeroline: false,
-                showspikes: false
+                showspikes: false,
+                range: globalYRange || undefined
             },
             margin: {l: 0, r: 0, t: 0, b: 0},
             showlegend: false
@@ -621,6 +683,68 @@ function pickBorderWidths(idxs) {
     );
 }
 
+function percentileCutoff(normArr, keepFrac) {
+
+  const finite = normArr.filter(Number.isFinite);
+  if (!finite.length) return Infinity;
+  if (keepFrac >= 1) {
+    // 100% → no filtering (cutoff below all values)
+    return -Infinity;
+  }
+
+  const sorted = [...finite].sort((a, b) => a - b);
+
+  // keep top keepFrac → cutoff at (1 - keepFrac)
+  const idx = Math.floor((1 - keepFrac) * (sorted.length - 1));
+  return sorted[idx];
+}
+
+
+function passesAllActiveCues(i) {
+  // Only apply a cue if its slider > 0
+
+  if (cueThresholds.uncertainty > 0 &&
+      uncertaintyNorm[i] < cueCutoffs.uncertainty) return false;
+
+  if (cueThresholds.diversity > 0 &&
+      diversityNorm[i] < cueCutoffs.diversity) return false;
+
+  if (cueThresholds.novelty > 0 &&
+      noveltyNorm[i] < cueCutoffs.novelty) return false;
+
+  if (cueThresholds.density > 0 &&
+      densityNorm[i] < cueCutoffs.density) return false;
+
+  if (cueThresholds.coverage > 0 &&
+      coverageNorm[i] < cueCutoffs.coverage) return false;
+
+  return true;
+}
+
+
+function recomputeCueCutoffs() {
+  // 0 → cue off → cutoff so low that nothing is filtered by that cue
+  cueCutoffs.uncertainty = (cueThresholds.uncertainty > 0)
+    ? percentileCutoff(uncertaintyNorm, cueThresholds.uncertainty)
+    : -Infinity;
+
+  cueCutoffs.diversity = (cueThresholds.diversity > 0)
+    ? percentileCutoff(diversityNorm, cueThresholds.diversity)
+    : -Infinity;
+
+  cueCutoffs.novelty = (cueThresholds.novelty > 0)
+    ? percentileCutoff(noveltyNorm, cueThresholds.novelty)
+    : -Infinity;
+
+  cueCutoffs.density = (cueThresholds.density > 0)
+    ? percentileCutoff(densityNorm, cueThresholds.density)
+    : -Infinity;
+
+  cueCutoffs.coverage = (cueThresholds.coverage > 0)
+    ? percentileCutoff(coverageNorm, cueThresholds.coverage)
+    : -Infinity;
+}
+
 
 // Controls
 hideCheckbox.addEventListener('change', updatePlot);
@@ -634,8 +758,41 @@ autoRotateCheckbox.addEventListener('change', () => {
 });
 
 
+let plotRAF = null;
+
+function requestPlotUpdate() {
+  if (plotRAF !== null) return;
+
+  plotRAF = requestAnimationFrame(() => {
+    plotRAF = null;
+    updatePlot();
+  });
+}
 
 // Initial render using server-injected data
 if (window.IMLVR_DATA) {
     applyEmbeddingData(window.IMLVR_DATA);
 }
+
+document.querySelectorAll(".cue-control").forEach(ctrl => {
+  const cue = ctrl.dataset.cue;
+  const slider = ctrl.querySelector("input");
+
+    slider.addEventListener("input", () => {
+      const value = parseFloat(slider.value);
+
+      // Update thresholds map
+      cueThresholds[cue] = value;
+
+      // Update label
+      const valSpan = document.querySelector(`.cue-value[data-cue="${cue}"]`);
+      if (valSpan) valSpan.textContent = `Top ${Math.round(value * 100)}%`;
+      console.log("LABEL SET TO:", `Top ${Math.round(value * 100)}%`);
+
+
+      //  Recompute and redraw
+      recomputeCueCutoffs();
+      requestPlotUpdate();
+    });
+
+});

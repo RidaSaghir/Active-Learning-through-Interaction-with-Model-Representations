@@ -10,7 +10,7 @@ const iterationLabelEl = document.getElementById("iterationLabel");
 const retrainBannerEl   = document.getElementById("retrainBanner");
 
 
-let lastIterationSeen = window.IMLVR_DATA ? window.IMLVR_DATA.iteration : null;
+let lastIterationSeen = window.IMLVR_DATA ? window.IMLVR_DATA.iteration : -1;
 
 
 
@@ -31,7 +31,7 @@ function renderMetrics(m) {
 
         lastIterationSeen = m.iteration;
 
-        fetch("/latest_embeddings")
+        fetch("/latest_embeddings_json")
             .then(r => r.json())
             .then(data => {
                 if (window.applyEmbeddingData && !data.error) {
@@ -161,3 +161,4 @@ function pollMetrics() {
 // Poll every 3 seconds
 setInterval(pollMetrics, 3000);
 pollMetrics();
+

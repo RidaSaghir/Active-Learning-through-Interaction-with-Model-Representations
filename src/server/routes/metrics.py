@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from ..schemas import MetricsPayload
 from .. import state
 from utils.logging_utils import get_logger
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 log = get_logger("imlvr.api_metrics")

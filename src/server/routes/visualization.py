@@ -50,6 +50,7 @@ def plot_embeddings():
     }
 
     html = html_template.replace("{{SERVER_JSON}}", json.dumps(payload))
+    html = html.replace("{{ITER}}", str(state.latest_iteration))
 
     return HTMLResponse(content=html)
 

@@ -5,6 +5,43 @@
     <title>3D Embeddings Plot</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
+
+<script>
+    window.STUDY_CONDITIONS = {
+    minimal: ["uncertainty"],
+    moderate: ["uncertainty", "diversity"],
+    rich: ["uncertainty", "diversity", "density"]
+    };
+
+    window.setStudyCondition = function (conditionName) {
+      const allowed = window.STUDY_CONDITIONS[conditionName] || [];
+
+      document.querySelectorAll(".cue-control").forEach(el => {
+        const cue = el.dataset.cue;
+        const slider = el.querySelector("input");
+
+        if (allowed.includes(cue)) {
+          el.style.display = "block";
+        } else {
+          el.style.display = "none";
+          slider.value = 0;
+
+          if (window.cueThresholds) window.cueThresholds[cue] = 0;
+
+          // (optional) update the % label too
+          const valSpan = el.querySelector(`.cue-value[data-cue="${cue}"]`);
+          if (valSpan) valSpan.textContent = "Top 0%";
+        }
+      });
+
+      if (window.recomputeCueCutoffs) recomputeCueCutoffs();
+      if (window.updatePlot) updatePlot();
+    };
+
+
+</script>
+
+
 <body style="background:#f4f5fa; margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;">
     <div style="
         max-width: 1200px;
@@ -80,7 +117,7 @@
         </div>
 
 
-        <!-- STEP BAR -->
+<!--         STEP BAR -->
 <!--        <div style="margin-top:1rem; display:flex; flex-wrap:wrap; gap:0.75rem; font-size:0.78rem; color:#444;">-->
 <!--            <div style="padding:0.35rem 0.6rem; border-radius:999px; background:#f1fbf4;">-->
 <!--                <strong>Step 1:</strong> Glance through the candidates in 3D space.-->
@@ -93,7 +130,8 @@
 <!--            </div>-->
 <!--        </div>-->
 
-        <!-- CONTROL BAR -->
+
+
         <div style="
             margin-top:1rem;
             padding:0.6rem 0.8rem;
@@ -115,37 +153,74 @@
                 </label>
             </div>
 
-            <div>
-              <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
-                Informativeness
+                    <!-- CONTROL BAR -->
+            <div id="cuePanel">
+              <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666; margin-bottom:0.3rem;">
+                Filter based on
               </div>
-              <select id="cueSelect">
-                <option value="none">None</option>
-                <option value="uncertainty">Uncertainty</option>
-                <option value="diversity">Diversity</option>
-                <option value="novelty">Novelty</option>
-                <option value="density">Density</option>
-                <option value="coverage">Coverage</option>
-              </select>
+
+              <div class="cue-control" data-cue="uncertainty">
+                <label>Uncertainty</label>
+                <input type="range" min="0" max="1" step="0.01" value="1" />
+                  <span class="cue-value" data-cue="uncertainty">Top 100%</span>
+              </div>
+
+              <div class="cue-control" data-cue="diversity">
+                <label>Diversity</label>
+                <input type="range" min="0" max="1" step="0.01" value="1" />
+                  <span class="cue-value" data-cue="diversity">Top 100%</span>
+              </div>
+
+              <div class="cue-control" data-cue="novelty">
+                <label>Outlierness</label>
+                <input type="range" min="0" max="1" step="0.01" value="1" />
+                  <span class="cue-value" data-cue="novelty">Top 100%</span>
+              </div>
+
+              <div class="cue-control" data-cue="density">
+                <label>Density</label>
+                <input type="range" min="0" max="1" step="0.01" value="1" />
+                  <span class="cue-value" data-cue="density">Top 100%</span>
+              </div>
+
+              <div class="cue-control" data-cue="coverage">
+                <label>Underrepresented classes</label>
+                <input type="range" min="0" max="1" step="0.01" value="1" />
+                  <span class="cue-value" data-cue="coverage">Top 100%</span>
+              </div>
             </div>
 
-            <div>
-              <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">
-                Visibility
-              </div>
-              <input
-                type="range"
-                id="cueSlider"
-                min="0"
-                max="1"
-                step="0.01"
-                value="1"
-                style="width:140px;"
-              />
-              <div style="font-size:0.7rem; color:#555;">
-                Top <span id="cuePctLabel">100</span>%
-              </div>
-            </div>
+<!--            <div>-->
+<!--              <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">-->
+<!--                Informativeness-->
+<!--              </div>-->
+<!--              <select id="cueSelect">-->
+<!--                <option value="none">None</option>-->
+<!--                <option value="uncertainty">Uncertainty</option>-->
+<!--                <option value="diversity">Diversity</option>-->
+<!--                <option value="novelty">Novelty</option>-->
+<!--                <option value="density">Density</option>-->
+<!--                <option value="coverage">Coverage</option>-->
+<!--              </select>-->
+<!--            </div>-->
+
+<!--            <div>-->
+<!--              <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:#666;">-->
+<!--                Visibility-->
+<!--              </div>-->
+<!--              <input-->
+<!--                type="range"-->
+<!--                id="cueSlider"-->
+<!--                min="0"-->
+<!--                max="1"-->
+<!--                step="0.01"-->
+<!--                value="1"-->
+<!--                style="width:140px;"-->
+<!--              />-->
+<!--              <div style="font-size:0.7rem; color:#555;">-->
+<!--                Top <span id="cuePctLabel">100</span>%-->
+<!--              </div>-->
+<!--            </div>-->
 
 
             <div>
@@ -218,7 +293,15 @@
     </script>
 
     <!-- External JS files -->
-    <script src="static/embeddings.js"></script>
-    <script src="static/metrics.js"></script>
+    <!--<script src="static/embeddings.js?v={{ITER}}"></script> -->
+    <script src="static/embeddings.js?v=4.6"></script>
+    <script src="static/metrics.js?v=3.1"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        window.setStudyCondition("rich");
+      });
+    </script>
+
 </body>
 </html>
