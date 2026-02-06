@@ -97,10 +97,9 @@ def run_trainer():
     loop = ActiveLearningLoop(labeled_manager, model, sampler, communicator, class_code_to_label)
     last_seen = len(load_annotations())
     while True:
-        # 1) Incorporate any NEW labels once, before training this cycle
-        added = loop._apply_new_annotations_and_train(epochs=1, replay_fraction=0.0)
+        # Incorporate any NEW labels once, before training this cycle
+        added = loop._apply_new_annotations_and_train(epochs=1, replay_fraction=1)
         if added:
-            human_labels_so_far = len(load_annotations())
             log.info(f"Applied new human annotations | +{added}")
 
         # 2) Train for X full epochs, then query once
