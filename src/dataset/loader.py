@@ -118,8 +118,14 @@ class UrbanSoundLoader:
 
     def get_labeled_unlabeled_datasets(self, held_out_fold):
         df = pd.read_csv(self.metadata_path)
-        df['class_code'] = df['class'].astype('category').cat.codes
-        class_code_to_label = dict(enumerate(df['class'].astype('category').cat.categories))
+        df['class_code'] = df['classID'].astype(int)
+        class_code_to_label = (
+            df[['classID', 'class']]
+            .drop_duplicates()
+            .sort_values('classID')
+            .set_index('classID')['class']
+            .to_dict()
+        )
 
         train_df = df[df['fold'] != held_out_fold]
         test_df = df[df['fold'] == held_out_fold]
