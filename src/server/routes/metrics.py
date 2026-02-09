@@ -24,3 +24,5 @@ def get_metrics():
         return {"error": "No metrics yet"}
     return state.latest_metrics
 
+
+

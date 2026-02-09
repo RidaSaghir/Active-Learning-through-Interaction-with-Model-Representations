@@ -14,7 +14,8 @@ from active_learning.active_learning_loop import Sampler, ActiveLearningLoop
 from server.communicator import RestCommunicator
 from server.app import create_app
 from server import state
-from utils.misc import load_annotations, evaluate_model_with_per_class
+from utils.misc import load_annotations
+from utils.eval_funcs import evaluate_model_with_per_class
 from utils.logging_utils import setup_logging, get_logger
 from utils.curve import append_curve_row, save_curve_png
 from config import (CHECKPOINT, BATCH_SIZE, HELD_OUT_FOLD, EPOCHS_BEFORE_QUERY, NUM_ANNOTATION_SUGGESTIONS,
@@ -111,7 +112,8 @@ def run_trainer():
         )
 
         # 3) Evaluate + send + checkpoint
-        acc_global, avg_loss, per_class_acc, per_class_support, macro_f1, micro_f1, num_discovered, total_classes, discovered_classes = evaluate_model_with_per_class(
+        (acc_global, avg_loss, per_class_acc, per_class_support, macro_f1, micro_f1,
+         num_discovered, total_classes, discovered_classes, cm) = evaluate_model_with_per_class(
             model, test_dataset, class_code_to_label=class_code_to_label
         )
 
@@ -152,7 +154,8 @@ def run_trainer():
             per_class_accuracy=per_class_acc,
             labeled_counts=labeled_counts,
             macro_f1=macro_f1,
-            micro_f1=micro_f1
+            micro_f1=micro_f1,
+            confusion_matrix=cm.tolist()
         )
         model.save(CHECKPOINT)
 

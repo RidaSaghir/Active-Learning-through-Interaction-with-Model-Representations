@@ -26,20 +26,20 @@ seed: 0
 # EXPERIMENT SETTINGS
 epochs_before_query : 5
 accuracy_target: 1
-held_out_fold : 3
-csv_filename: "ui_testing"
-png_filename: "ui_testing"
-labels_per_round: 10
-produce_annotation_suggestions: False
-annotation_suggestions_using: "coverage"
-num_annotation_suggestions : 10
+held_out_fold : 4
+csv_filename: "model_perf_ui_test"
+png_filename: "model_perf_ui_test"
+labels_per_round: 30
+produce_annotation_suggestions: True
+annotation_suggestions_using: "density"
+num_annotation_suggestions : 30
 max_per_class_per_fold: 40 # in total training dataset
 
 # NON-COLD START SETTINGS
 initial_labels_per_class_count : 120 # For NON-cold start mode in LABELED set
 
 # COLD START SETTINGS
-cold_start_with_user: True
+cold_start_with_user: False
 initial_labels_required : 50 # For Cold start mode
 
 

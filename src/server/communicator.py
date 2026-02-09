@@ -71,6 +71,7 @@ class RestCommunicator:
         labeled_counts=None,
         macro_f1=None,
         micro_f1=None,
+        confusion_matrix=None,
         phase=None,
     ):
         payload = {
@@ -84,6 +85,7 @@ class RestCommunicator:
             "labeled_counts": labeled_counts or {},
             "macro_f1": macro_f1,
             "micro_f1": micro_f1,
+            "confusion_matrix": confusion_matrix,
             "phase": phase,
         }
         try:

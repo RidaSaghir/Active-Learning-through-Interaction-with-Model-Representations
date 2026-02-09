@@ -23,6 +23,9 @@ class MetricsPayload(BaseModel):
     human_labeled: Optional[int] = None
     per_class_accuracy: Optional[Dict[str, float]] = None
     labeled_counts: Optional[Dict[str, int]] = None
+    macro_f1: Optional[float] = None
+    micro_f1: Optional[float] = None
+    confusion_matrix: Optional[List[List[int]]] = None
     phase: Optional[str] = None
 
 
