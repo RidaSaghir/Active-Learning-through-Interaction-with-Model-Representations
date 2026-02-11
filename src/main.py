@@ -5,6 +5,10 @@ import threading
 import torch
 import uvicorn
 import time
+import random
+import numpy as np
+import json
+
 
 from dataset.loader import UrbanSoundLoader
 from dataset.labeled_manager import LabeledSetManager
@@ -20,8 +24,15 @@ from utils.logging_utils import setup_logging, get_logger
 from utils.curve import append_curve_row, save_curve_png
 from config import (CHECKPOINT, BATCH_SIZE, HELD_OUT_FOLD, EPOCHS_BEFORE_QUERY, NUM_ANNOTATION_SUGGESTIONS,
                     INITIAL_LABELS_PER_CLASS_COUNT, ACCURACY_TARGET, CSV_FILENAME, PNG_FILENAME,
-                    LABELS_PER_ROUND, MODEL_VARIANT)
+                    LABELS_PER_ROUND, MODEL_VARIANT, SEED, EPOCHS_FOR_RETRAING)
 
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
+torch.use_deterministic_algorithms(True)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 def start_api_in_thread(host="0.0.0.0", port=8000):
     app = create_app()
     # Use the same logging you set up below; disable uvicorn’s own config
@@ -32,6 +43,7 @@ def start_api_in_thread(host="0.0.0.0", port=8000):
     return t
 
 def run_trainer():
+    offline_cursor = 0 #for loading X labels at a time
     log = get_logger("main")
 
     embedder = YAMNetEmbedder()
@@ -65,7 +77,7 @@ def run_trainer():
         log.info("No checkpoint found; starting fresh")
 
     # Loading human annotations if any
-    human_annotations = load_annotations()
+    human_annotations = load_annotations(limit=offline_cursor)
     log.info(f"Loaded human annotations: {len(human_annotations)}")
 
     # --- Fixed held-out fold (constant test set) ---
@@ -96,10 +108,10 @@ def run_trainer():
         )
 
     loop = ActiveLearningLoop(labeled_manager, model, sampler, communicator, class_code_to_label)
-    last_seen = len(load_annotations())
+    last_seen = len(load_annotations(limit=offline_cursor))
     while True:
         # Incorporate any NEW labels once, before training this cycle
-        added = loop._apply_new_annotations_and_train(epochs=1, replay_fraction=1)
+        added = loop._apply_new_annotations_and_train(epochs=EPOCHS_FOR_RETRAING, replay_fraction=1, annotations_limit=offline_cursor)
         if added:
             log.info(f"Applied new human annotations | +{added}")
 
@@ -126,7 +138,7 @@ def run_trainer():
         curve_png = os.path.join("logs", f"{PNG_FILENAME}.png")
 
         # how many human labels are in play right now
-        human_labels_so_far = len(load_annotations())
+        human_labels_so_far = len(load_annotations(limit=offline_cursor))
         total_labeled_now = len(labeled_manager.labeled_indices)
         labeled_counts = labeled_manager.get_labeled_counts_per_class(class_code_to_label)
 
@@ -174,8 +186,12 @@ def run_trainer():
         # 4) Wait for more labels
         while True:
             time.sleep(1.0)
-            curr = load_annotations()
-            if len(curr) >= last_seen + LABELS_PER_ROUND:  # new labels arrived
+            offline_cursor += LABELS_PER_ROUND
+            curr = load_annotations(limit=offline_cursor)
+            delta_n = len(curr) - last_seen
+            if delta_n >= LABELS_PER_ROUND:
+                rounds = delta_n // LABELS_PER_ROUND
+                new_total = last_seen + rounds * LABELS_PER_ROUND
                 last_seen = len(curr)
                 log.info(
                     f"Detected new labels | total={last_seen} "
