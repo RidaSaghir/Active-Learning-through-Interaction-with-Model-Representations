@@ -3,7 +3,7 @@ import os
 import json
 from config import DATA_DIR
 
-with open("../human_annotations.json") as f:
+with open("../moeez_annotations.json") as f:
     human_annotations = json.load(f)
 
 metadata_path = os.path.join(DATA_DIR, "UrbanSound8K.csv")
