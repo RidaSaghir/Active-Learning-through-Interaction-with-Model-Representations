@@ -138,9 +138,8 @@ class ActiveLearningLoop:
             true_codes,
         )
 
-    def _apply_new_annotations_and_train(self, device=None, epochs=1, replay_fraction=0.0):
-        """Load human_annotations.json, take only NEW items, train on them."""
-        current = load_annotations()
+    def _apply_new_annotations_and_train(self, device=None, epochs=1, replay_fraction=0.0, annotations_limit=None):
+        current = load_annotations(limit=annotations_limit)
         delta = diff_annotations(current, self._seen_annotations)
         if not delta:
             return 0  # nothing to do
