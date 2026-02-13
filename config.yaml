@@ -8,8 +8,7 @@ model_variant: "yamnet_mlp_2d"
 # - yamnet_mlp_3d
 # - yamnet_mlp_2d
 # - yamnet_linear_2d
-# - yamnet_svm_2d
-# - yamnet_logreg_2d
+# - yamnet_linear_3d
 
 # MODEL SETTINGS
 sample_rate: 16000
@@ -18,22 +17,24 @@ embedding_dim: 1024
 broadcast_interval: 1
 base_url: "http://localhost:8000"
 check_point : "model_checkpoint.pth"
-human_annotations: "human_annotations.json"
+human_annotations: "moeez_annotations_ideal.json"
 learning_rate : 1e-3
 batch_size : 32
 seed: 0
 
 # EXPERIMENT SETTINGS
 epochs_before_query : 5
+epochs_for_retraining : 1
 accuracy_target: 1
 held_out_fold : 4
-csv_filename: "model_perf_ui_test"
-png_filename: "model_perf_ui_test"
+csv_filename: "model_perf_moeez_ideal"
+png_filename: "model_perf_moeez_ideal"
 labels_per_round: 30
 produce_annotation_suggestions: True
 annotation_suggestions_using: "density"
 num_annotation_suggestions : 30
 max_per_class_per_fold: 40 # in total training dataset
+offline_mode: True
 
 # NON-COLD START SETTINGS
 initial_labels_per_class_count : 120 # For NON-cold start mode in LABELED set
