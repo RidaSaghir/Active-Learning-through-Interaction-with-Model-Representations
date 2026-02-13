@@ -80,19 +80,6 @@ function renderMetrics(m) {
             sub += ` (human: ${humanLabeled})`;
         }
         globalAccSubEl.textContent = sub;
-        const macroF1 = m.macro_f1 ?? null;
-        const discovered = Object.values(labeledCounts).filter(cnt => cnt > 0).length;
-        const discoveredOutOf = Object.keys(perClassAcc).length;
-
-        if (macroF1 != null && discoveredOutOf > 0) {
-            const extra = `Macro-F1: ${(macroF1 * 100).toFixed(1)}% · Discovered: ${discovered}/${discoveredOutOf}`;
-            const f1El = document.createElement("div");
-            f1El.style.fontSize = "0.78rem";
-            f1El.style.color = "#444";
-            f1El.style.marginTop = "0.25rem";
-            f1El.textContent = extra;
-            globalAccSubEl.parentNode.appendChild(f1El);
-        }
 
     } else {
         globalAccTextEl.textContent = "Accuracy: –";

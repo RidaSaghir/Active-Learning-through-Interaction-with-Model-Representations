@@ -11,7 +11,7 @@ log = get_logger("imlvr.api_audio_render")
 def serve_audio(filename: str):
     filename = unquote(filename)  # important if any spaces/%xx
     log.info(f"Audio request: filename={filename} DATA_DIR={DATA_DIR}")
-    for fold in range(10):
+    for fold in range(1, 11):
         candidate = Path(DATA_DIR) / f"fold{fold}" / filename
         log.info(f" - check: {candidate}")
         if candidate.exists():

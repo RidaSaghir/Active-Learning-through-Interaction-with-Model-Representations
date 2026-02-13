@@ -58,7 +58,6 @@ const VISUAL_CONFIG = {
     border: false       // class coverage / density
 };
 
-
 // ----- Mutable globals -----
 let embeddings       = [];
 let actualLabels     = [];
@@ -304,7 +303,6 @@ window.applyEmbeddingData = applyEmbeddingData;
 
 // ----- Plot + interactions -----
 const hideCheckbox        = document.getElementById("hideLabeledCheckbox");
-const autoRotateCheckbox  = document.getElementById("autoRotateCheckbox");
 const gd                  = document.getElementById('plot');
 console.log("[BOOT] gd id:", gd?.id, "node:", gd);
 const hoverInfoEl         = document.getElementById('hoverInfo');
@@ -350,19 +348,6 @@ function spin() {
     spinFrameId = requestAnimationFrame(spin);
 }
 
-function startSpin() {
-    if (isSpinning) return;
-    isSpinning = true;
-    spin();
-}
-
-function stopSpin() {
-    isSpinning = false;
-    if (spinFrameId !== null) {
-        cancelAnimationFrame(spinFrameId);
-        spinFrameId = null;
-    }
-}
 
 function computeHotspotIndices(k, values, baseVisibleIdxs) {
     const candidates = [];
@@ -552,10 +537,23 @@ function attachPlotEvents() {
             await audioPlayer.play();
             console.log("[AUDIO] play() resolved");
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 const selectedClass = promptForLabel();
                 if (selectedClass) {
-                // Handle your labeling logic here (e.g., send to server)
+                    const datasetIdx = datasetIndices[globalIdx];
+                    const labelCode = CLASS_MAP[selectedClass];
+
+                    await fetch("/human_annotations", {
+                        method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            filenames: [filename],
+                            indices: [datasetIdx],
+                            labels: [labelCode],
+                            user: "rida"
+                          })
+                        });
+                                    // Handle your labeling logic here (e.g., send to server)
                     console.log(`Labeled ${filename} as ${selectedClass}`);
                 }
                 isAudioLoading = false;
@@ -582,15 +580,17 @@ function updatePlot() {
         modeBarButtonsToRemove: [
             'toImage', 'select2d', 'lasso2d',
             'hoverCompareCartesian', 'hoverClosestCartesian',
-            'resetCameraLastSave3d'
+             // 3D camera/nav buttons (removes rotate/pan/zoom UI)
+            'orbitRotation',
+            'tableRotation',
+            'pan3d',
+            'zoom3d',
+            'resetCameraDefault3d',
+            'resetCameraLastSave3d',
+            'hoverClosest3d'
         ]
     }).then(() => {
         attachPlotEvents();
-        if (window.EMBEDDING_DIM === 3 && autoRotateCheckbox.checked) {
-            startSpin();
-        } else {
-            stopSpin();
-        }
 
     });
 }
@@ -605,6 +605,7 @@ function getLayout() {
                 yaxis: globalYRange ? { range: globalYRange } : {},
                 zaxis: globalZRange ? { range: globalZRange } : {}
             },
+            dragmode: false,
             margin: {l: 0, r: 0, t: 0, b: 0},
             showlegend: false
         };
@@ -748,15 +749,6 @@ function recomputeCueCutoffs() {
 
 // Controls
 hideCheckbox.addEventListener('change', updatePlot);
-
-autoRotateCheckbox.addEventListener('change', () => {
-    if (autoRotateCheckbox.checked) {
-        startSpin();
-    } else {
-        stopSpin();
-    }
-});
-
 
 let plotRAF = null;
 
