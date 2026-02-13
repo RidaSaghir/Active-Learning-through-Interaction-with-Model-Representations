@@ -22,11 +22,14 @@ def build_model(variant, input_dim=1024, num_classes=10):
         )
 
     if variant == "yamnet_linear_2d":
-        return TorchModel(
-            LinearProjector(input_dim, 2),
-            nn.Linear(2, num_classes),
-            num_classes
-        )
+        projector = LinearProjector(input_dim, 2)
+        head = nn.Linear(2, num_classes)
+        return TorchModel(projector, head, num_classes)
+
+    if variant == "yamnet_linear_3d":
+        projector = LinearProjector(input_dim, 3)
+        head = nn.Linear(3, num_classes)
+        return TorchModel(projector, head, num_classes)
 
     if variant == "yamnet_svm_2d":
         return SklearnModel(
