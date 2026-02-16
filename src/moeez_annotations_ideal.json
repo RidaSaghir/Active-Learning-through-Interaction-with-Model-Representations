@@ -1,0 +1,602 @@
+{
+  "2966": {
+    "label": 8,
+    "user": "oracle",
+    "filename": "157868-8-0-25.wav"
+  },
+  "3219": {
+    "label": 8,
+    "user": "oracle",
+    "filename": "159744-8-0-7.wav"
+  },
+  "3225": {
+    "label": 8,
+    "user": "oracle",
+    "filename": "157866-8-0-7.wav"
+  },
+  "2194": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "184805-0-0-82.wav"
+  },
+  "3187": {
+    "label": 7,
+    "user": "oracle",
+    "filename": "119809-7-0-6.wav"
+  },
+  "2456": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "177729-0-0-22.wav"
+  },
+  "3042": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "155130-1-1-0.wav"
+  },
+  "2031": {
+    "label": 4,
+    "user": "oracle",
+    "filename": "205874-4-4-0.wav"
+  },
+  "1358": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "197318-6-5-0.wav"
+  },
+  "1232": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "162703-1-0-0.wav"
+  },
+  "3371": {
+    "label": 4,
+    "user": "oracle",
+    "filename": "118278-4-0-5.wav"
+  },
+  "3136": {
+    "label": 5,
+    "user": "oracle",
+    "filename": "62567-5-0-3.wav"
+  },
+  "1971": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "185436-1-6-0.wav"
+  },
+  "2357": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "135544-6-3-0.wav"
+  },
+  "2621": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "135527-6-13-0.wav"
+  },
+  "1777": {
+    "label": 4,
+    "user": "oracle",
+    "filename": "69598-4-0-0.wav"
+  },
+  "1950": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "85569-0-0-3.wav"
+  },
+  "2635": {
+    "label": 7,
+    "user": "oracle",
+    "filename": "77751-7-1-1.wav"
+  },
+  "2944": {
+    "label": 8,
+    "user": "oracle",
+    "filename": "148632-8-0-3.wav"
+  },
+  "2832": {
+    "label": 4,
+    "user": "oracle",
+    "filename": "168037-4-1-0.wav"
+  },
+  "2195": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "184805-0-0-40.wav"
+  },
+  "3422": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "174289-6-3-0.wav"
+  },
+  "2113": {
+    "label": 7,
+    "user": "oracle",
+    "filename": "165774-7-5-0.wav"
+  },
+  "1939": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "178686-0-0-63.wav"
+  },
+  "3220": {
+    "label": 8,
+    "user": "oracle",
+    "filename": "159748-8-1-0.wav"
+  },
+  "2631": {
+    "label": 7,
+    "user": "oracle",
+    "filename": "77751-7-8-0.wav"
+  },
+  "2493": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "99812-1-6-0.wav"
+  },
+  "2889": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "162433-6-4-0.wav"
+  },
+  "2901": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "145206-6-2-0.wav"
+  },
+  "1600": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "197320-6-9-0.wav"
+  },
+  "2353": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "135544-6-16-0.wav"
+  },
+  "3267": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "189982-0-0-35.wav"
+  },
+  "1826": {
+    "label": 5,
+    "user": "oracle",
+    "filename": "6988-5-0-1.wav"
+  },
+  "3025": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "101729-0-0-23.wav"
+  },
+  "3256": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "73524-0-0-73.wav"
+  },
+  "2234": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "82317-1-0-0.wav"
+  },
+  "3281": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "175850-1-0-0.wav"
+  },
+  "1445": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "146690-0-0-43.wav"
+  },
+  "2332": {
+    "label": 5,
+    "user": "oracle",
+    "filename": "111386-5-1-2.wav"
+  },
+  "2486": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "183894-1-9-0.wav"
+  },
+  "1411": {
+    "label": 8,
+    "user": "oracle",
+    "filename": "40722-8-0-6.wav"
+  },
+  "3299": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "54086-1-0-0.wav"
+  },
+  "3174": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "145683-6-3-0.wav"
+  },
+  "2366": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "159702-6-0-0.wav"
+  },
+  "1351": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "174290-6-2-0.wav"
+  },
+  "3163": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "145683-6-2-0.wav"
+  },
+  "3034": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "180156-1-10-0.wav"
+  },
+  "1225": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "94868-1-2-0.wav"
+  },
+  "2739": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "6984-1-0-0.wav"
+  },
+  "2232": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "43802-1-2-0.wav"
+  },
+  "151": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "24076-1-0-0.wav"
+  },
+  "2490": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "162728-1-0-0.wav"
+  },
+  "122": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "185436-1-7-0.wav"
+  },
+  "199": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "99812-1-5-0.wav"
+  },
+  "697": {
+    "label": 5,
+    "user": "oracle",
+    "filename": "17578-5-0-14.wav"
+  },
+  "54": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "189982-0-0-19.wav"
+  },
+  "2325": {
+    "label": 5,
+    "user": "oracle",
+    "filename": "78651-5-0-4.wav"
+  },
+  "62": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "146845-0-0-8.wav"
+  },
+  "2395": {
+    "label": 7,
+    "user": "oracle",
+    "filename": "54697-7-0-3.wav"
+  },
+  "682": {
+    "label": 5,
+    "user": "oracle",
+    "filename": "111386-5-0-6.wav"
+  },
+  "3050": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "180156-1-1-0.wav"
+  },
+  "460": {
+    "label": 3,
+    "user": "oracle",
+    "filename": "57105-3-4-2.wav"
+  },
+  "2425": {
+    "label": 9,
+    "user": "oracle",
+    "filename": "31973-9-0-71.wav"
+  },
+  "1701": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "13230-0-0-14.wav"
+  },
+  "2659": {
+    "label": 8,
+    "user": "oracle",
+    "filename": "105289-8-1-4.wav"
+  },
+  "1729": {
+    "label": 2,
+    "user": "oracle",
+    "filename": "151149-2-0-54.wav"
+  },
+  "176": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "49974-1-0-0.wav"
+  },
+  "2509": {
+    "label": 2,
+    "user": "oracle",
+    "filename": "66619-2-0-6.wav"
+  },
+  "2487": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "34241-1-1-0.wav"
+  },
+  "796": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "164646-6-0-0.wav"
+  },
+  "2902": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "162433-6-8-0.wav"
+  },
+  "2923": {
+    "label": 7,
+    "user": "oracle",
+    "filename": "33340-7-15-0.wav"
+  },
+  "3041": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "42101-1-1-0.wav"
+  },
+  "1478": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "155234-1-0-0.wav"
+  },
+  "2233": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "182474-1-0-0.wav"
+  },
+  "2745": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "125520-1-3-0.wav"
+  },
+  "2196": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "184805-0-0-101.wav"
+  },
+  "128": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "128465-1-0-4.wav"
+  },
+  "1927": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "178686-0-0-16.wav"
+  },
+  "3166": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "136399-6-1-0.wav"
+  },
+  "3290": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "100648-1-3-0.wav"
+  },
+  "2988": {
+    "label": 9,
+    "user": "oracle",
+    "filename": "66324-9-0-30.wav"
+  },
+  "3244": {
+    "label": 9,
+    "user": "oracle",
+    "filename": "194310-9-0-7.wav"
+  },
+  "2809": {
+    "label": 3,
+    "user": "oracle",
+    "filename": "190996-3-0-8.wav"
+  },
+  "3346": {
+    "label": 3,
+    "user": "oracle",
+    "filename": "72220-3-2-2.wav"
+  },
+  "2904": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "162433-6-5-0.wav"
+  },
+  "1926": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "178686-0-0-72.wav"
+  },
+  "2686": {
+    "label": 9,
+    "user": "oracle",
+    "filename": "171184-9-0-23.wav"
+  },
+  "626": {
+    "label": 5,
+    "user": "oracle",
+    "filename": "62566-5-2-0.wav"
+  },
+  "2623": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "135527-6-6-0.wav"
+  },
+  "2406": {
+    "label": 8,
+    "user": "oracle",
+    "filename": "124389-8-1-17.wav"
+  },
+  "1230": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "94868-1-1-0.wav"
+  },
+  "184": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "180156-1-7-0.wav"
+  },
+  "230": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "18933-1-0-0.wav"
+  },
+  "3411": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "200460-6-3-0.wav"
+  },
+  "2088": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "145611-6-4-0.wav"
+  },
+  "869": {
+    "label": 7,
+    "user": "oracle",
+    "filename": "203929-7-7-4.wav"
+  },
+  "772": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "135544-6-2-0.wav"
+  },
+  "519": {
+    "label": 4,
+    "user": "oracle",
+    "filename": "103199-4-4-0.wav"
+  },
+  "3111": {
+    "label": 4,
+    "user": "oracle",
+    "filename": "180029-4-20-0.wav"
+  },
+  "2050": {
+    "label": 4,
+    "user": "oracle",
+    "filename": "71171-4-0-3.wav"
+  },
+  "2214": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "184805-0-0-103.wav"
+  },
+  "229": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "175851-1-0-0.wav"
+  },
+  "1990": {
+    "label": 2,
+    "user": "oracle",
+    "filename": "104421-2-0-3.wav"
+  },
+  "1712": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "175854-1-0-0.wav"
+  },
+  "171": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "54086-1-2-0.wav"
+  },
+  "1684": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "13230-0-0-20.wav"
+  },
+  "835": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "196400-6-0-0.wav"
+  },
+  "1223": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "50901-0-0-0.wav"
+  },
+  "799": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "162436-6-0-0.wav"
+  },
+  "1959": {
+    "label": 1,
+    "user": "oracle",
+    "filename": "72259-1-3-0.wav"
+  },
+  "1103": {
+    "label": 9,
+    "user": "oracle",
+    "filename": "139951-9-0-33.wav"
+  },
+  "2103": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "162432-6-13-0.wav"
+  },
+  "2717": {
+    "label": 0,
+    "user": "oracle",
+    "filename": "162103-0-0-12.wav"
+  },
+  "2620": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "158978-6-0-0.wav"
+  },
+  "1359": {
+    "label": 6,
+    "user": "oracle",
+    "filename": "46656-6-1-0.wav"
+  },
+  "3365": {
+    "label": 4,
+    "user": "oracle",
+    "filename": "187863-4-0-0.wav"
+  },
+  "1337": {
+    "label": 5,
+    "user": "oracle",
+    "filename": "176787-5-0-20.wav"
+  },
+  "2793": {
+    "label": 3,
+    "user": "oracle",
+    "filename": "157649-3-0-1.wav"
+  },
+  "3348": {
+    "label": 3,
+    "user": "oracle",
+    "filename": "7913-3-2-0.wav"
+  }
+}

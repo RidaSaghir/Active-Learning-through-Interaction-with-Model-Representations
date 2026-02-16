@@ -12,17 +12,26 @@ def diff_annotations(current: dict, seen: dict):
             delta[idx] = lbl
     return delta
 
-def load_annotations(path=HUMAN_ANNOTATIONS):
+def load_annotations(path=HUMAN_ANNOTATIONS, limit=None):
     if not os.path.exists(path):
         return {}
     with open(path, "r") as f:
         data = json.load(f)
+
+    # deterministic order
+    items = list(data.items())
+    items.sort(key=lambda x: int(x[0]))
+
+    if limit is not None:
+        items = items[:limit]
+
     result = {}
-    for k, v in data.items():
+    for k, v in items:
         if isinstance(v, dict):
             result[int(k)] = int(v.get("label"))
         else:
             result[int(k)] = int(v)
+
     return result
 
 def compute_umap(embeddings, n_components: int = 3, random_state = 42):
