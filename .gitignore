@@ -12,6 +12,10 @@ __pycache__/
 *.pyo
 
 # Result and log files
-src/human_annotations.json
-src/model_checkpoint.pth
-src/logs
+.*log
+.*json
+
+
+# Model checkpoint
+*.pth
+*.meta
