@@ -1,6 +1,6 @@
 # Interactive Machine Learning with Active Learning and VR Interface
 
-This project is WORK IN PROGRESS for an interactive machine learning system for sound classification using the UrbanSound8K dataset. It leverages **active learning**, **pretrained audio embeddings (YAMNet)**, and a **VR-compatible backend** to support human-in-the-loop annotation and retraining.
+This project is a work in progress toward an interactive machine learning system for environmental sound classification using the UrbanSound8K dataset. It integrates active learning with pretrained audio embeddings (YAMNet) to enable efficient human-in-the-loop annotation and iterative model refinement. The system is designed to support interactive exploration, selective labeling, and incremental retraining within a unified experimental framework.
 
 ---
 ## How to get it working?
@@ -71,7 +71,7 @@ Receives a list of filenames and indices for which user annotations are requeste
 
 ### `/plot`  
 **GET**  
-Renders an interactive plot for 3D visualization of the intermediate embeddings.  
+Renders an interactive plot for 3D/2D visualization of the intermediate embeddings.  
 ➡️ Visit this in your browser to explore.
 
 ---
