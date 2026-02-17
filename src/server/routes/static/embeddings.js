@@ -246,20 +246,32 @@ function applyEmbeddingData(data) {
     );
 
     // 8) Class color mapping
-    classToIndex = {};
-    let classCounter = 0;
-    predictedLabels.forEach(lbl => {
-        if (!(lbl in classToIndex)) {
-            classToIndex[lbl] = classCounter++;
-        }
-    });
-    colorIndexAll = predictedLabels.map(lbl => classToIndex[lbl]);
-
+    classToIndex = { ...CLASS_MAP };                // fixed mapping
     nClasses = Object.keys(classToIndex).length;
+
+    // map each predicted label string -> stable index
+    colorIndexAll = predictedLabels.map(lbl => {
+        // if predictedLabels are already your class names, this works:
+        if (lbl in CLASS_MAP) return CLASS_MAP[lbl];
+
+        // if predictedLabels are display labels that differ, handle here:
+        // e.g. return CLASS_MAP[normalizeLabel(lbl)] ...
+        return 0; // fallback (or NaN)
+    });
+    // classToIndex = {};
+    // let classCounter = 0;
+    // predictedLabels.forEach(lbl => {
+    //     if (!(lbl in classToIndex)) {
+    //         classToIndex[lbl] = classCounter++;
+    //     }
+    // });
+    // colorIndexAll = predictedLabels.map(lbl => classToIndex[lbl]);
+    //
+    // nClasses = Object.keys(classToIndex).length;
     colorScale = [];
-    for (let i = 0; i < nClasses; i++) {
-        const t0 = i / nClasses;
-        const t1 = (i + 1) / nClasses;
+    for (let i = 0; i < classColors.length; i++) {
+        const t0 = i / classColors.length;
+        const t1 = (i + 1) / classColors.length;
         colorScale.push([t0, classColors[i]]);
         colorScale.push([t1, classColors[i]]);
     }
@@ -379,7 +391,7 @@ function makeData(hideLabeledFlag) {
 
 
     const traces = [];
-    const classLabels = Object.keys(classToIndex);
+    const classLabels = CLASS_NAMES;
 
     for (const cls of classLabels) {
         const clsIdx = classToIndex[cls];
@@ -430,7 +442,7 @@ function makeData(hideLabeledFlag) {
                     color: pick(colorIndexAll, idxsThis),
                     colorscale: colorScale,
                     cmin: 0,
-                    cmax: nClasses,
+                    cmax: 9,
                     opacity: VISUAL_CONFIG.opacity
                         ? opacityPerBin[bin]
                         : 0.9,
@@ -638,7 +650,7 @@ function buildMarker(idxsThis, bin) {
         color: pick(colorIndexAll, idxsThis),
         colorscale: colorScale,
         cmin: 0,
-        cmax: nClasses - 1
+        cmax: 9
     };
 
     if (VISUAL_CONFIG.size) {
