@@ -17,7 +17,7 @@ embedding_dim: 1024
 broadcast_interval: 1
 base_url: "http://localhost:8000"
 check_point : "model_checkpoint.pth"
-human_annotations: "moeez_annotations_ideal.json"
+human_annotations: "human_annotations.json"
 learning_rate : 1e-3
 batch_size : 32
 seed: 0
@@ -27,14 +27,14 @@ epochs_before_query : 5
 epochs_for_retraining : 1
 accuracy_target: 1
 held_out_fold : 4
-csv_filename: "model_perf_moeez_ideal"
-png_filename: "model_perf_moeez_ideal"
+csv_filename: "model_perf"
+png_filename: "model_perf"
 labels_per_round: 30
 produce_annotation_suggestions: True
 annotation_suggestions_using: "density"
 num_annotation_suggestions : 30
 max_per_class_per_fold: 40 # in total training dataset
-offline_mode: True
+offline_mode: False
 
 # NON-COLD START SETTINGS
 initial_labels_per_class_count : 120 # For NON-cold start mode in LABELED set
